@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-21T00:00:00.000Z",
+  "title": "Design System: Hệ Mặt Trời 3D — Celestial Showcase",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Gold Lamp", "canonical": "#fdb813", "tonalRamp": ["#3a2a04", "#5a4208", "#7c5c0a", "#9e750c", "#c1940f", "#e3b211", "#fdb813", "#fdd76b", "#fde8a8", "#fdf3d6"] },
+      "primary-deep": { "role": "primary", "displayName": "Gold Ember", "canonical": "#d97706", "tonalRamp": ["#3b1f02", "#5a2f04", "#7a3f05", "#9a5007", "#b96208", "#d97706", "#f59e0b", "#f8b04a", "#fbcb8c", "#fde6cf"] },
+      "secondary": { "role": "secondary", "displayName": "Cyan Instrument", "canonical": "#38bdf8", "tonalRamp": ["#063c55", "#0a5580", "#0e6fab", "#1289d6", "#1da2e9", "#38bdf8", "#6ccdfa", "#a4e0fc", "#d3f1fe", "#effaff"] },
+      "tertiary": { "role": "tertiary", "displayName": "Indigo", "canonical": "#818cf8", "tonalRamp": ["#1c1f5c", "#2d3180", "#3f44a3", "#5157c7", "#6971e2", "#818cf8", "#a3acfa", "#c5ccfc", "#e2e5fe", "#f5f6ff"] },
+      "accent-emerald": { "role": "tertiary", "displayName": "Signal Emerald", "canonical": "#34d399", "tonalRamp": ["#083d2c", "#0e5a42", "#147a58", "#1b9a6e", "#26b985", "#34d399", "#63e0b2", "#94ecce", "#c6f7e6", "#ecfdf7"] },
+      "accent-rose": { "role": "tertiary", "displayName": "Signal Rose", "canonical": "#f87171", "tonalRamp": ["#4c1212", "#731d1d", "#9b2828", "#c23434", "#e24e4e", "#f87171", "#fa9797", "#fcbfbf", "#fee0e0", "#fff5f5"] },
+      "bg-deep-space": { "role": "neutral", "displayName": "Deep Space", "canonical": "#020409", "tonalRamp": ["#010203", "#020409", "#04080f", "#060b16", "#080f1d", "#0a1324", "#0d182b", "#101d33", "#13223a", "#162742"] },
+      "bg-oled-charcoal": { "role": "neutral", "displayName": "Oled Charcoal", "canonical": "#060a14", "tonalRamp": ["#020307", "#040610", "#060a14", "#090e1b", "#0c1222", "#0f1629", "#121a30", "#151e37", "#18223e", "#1b2645"] },
+      "surface-glass": { "role": "neutral", "displayName": "Glass Surface", "canonical": "rgba(6, 11, 24, 0.78)", "tonalRamp": ["#05080f", "#070a15", "#090d1a", "#0b1020", "#0d1325", "#0f162b", "#111930", "#131c36", "#151f3b", "#172240"] },
+      "surface-card": { "role": "neutral", "displayName": "Card Surface", "canonical": "rgba(8, 14, 28, 0.82)", "tonalRamp": ["#060a16", "#08101c", "#0a1222", "#0c1428", "#0e162e", "#101834", "#121a3a", "#141c40", "#161e46", "#18204c"] },
+      "border-glass": { "role": "neutral", "displayName": "Glass Border", "canonical": "rgba(255, 255, 255, 0.08)", "tonalRamp": ["#05080f", "#070a15", "#090d1a", "#0b1020", "#0d1325", "#0f162b", "#111930", "#131c36", "#151f3b", "#172240"] },
+      "border-strong": { "role": "neutral", "displayName": "Strong Border", "canonical": "rgba(255, 255, 255, 0.2)", "tonalRamp": ["#05080f", "#070a15", "#090d1a", "#0b1020", "#0d1325", "#0f162b", "#111930", "#131c36", "#151f3b", "#172240"] },
+      "text-primary": { "role": "neutral", "displayName": "Text Primary", "canonical": "#f8fafc", "tonalRamp": ["#3c4450", "#545e6d", "#6c7889", "#8492a6", "#9cacc3", "#b4c2d6", "#cbd6e6", "#e2e9f1", "#f1f4f8", "#f8fafc"] },
+      "text-secondary": { "role": "neutral", "displayName": "Text Secondary", "canonical": "#94a3b8", "tonalRamp": ["#2a3038", "#39414c", "#485262", "#576370", "#667481", "#758599", "#8595aa", "#94a3b8", "#b3bfcf", "#d1d9e4"] },
+      "text-muted": { "role": "neutral", "displayName": "Text Muted", "canonical": "#64748b", "tonalRamp": ["#1c2129", "#262c37", "#303745", "#3a4253", "#444d61", "#4e5870", "#58637e", "#64748b", "#8c99ab", "#b3bcc8"] },
+      "text-subtle": { "role": "neutral", "displayName": "Text Subtle", "canonical": "#475569", "tonalRamp": ["#14181e", "#1b2028", "#222933", "#29313d", "#303a47", "#374251", "#3e4b5c", "#475569", "#6e7d92", "#94a2b4"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero title and each planet's name — one per frame." },
+      "headline": { "displayName": "Headline", "purpose": "Section headlines (classification, footer, hero sub-headings)." },
+      "title": { "displayName": "Title", "purpose": "Panel titles, bento-card headings, tool names." },
+      "body": { "displayName": "Body", "purpose": "Descriptions, fact-card copy, mission text." },
+      "label": { "displayName": "Label", "purpose": "Mono uppercase metadata: orbit tags, eyebrows, captions, tooltips." }
+    },
+    "shadows": [
+      { "name": "planet-cast", "value": "0 24px 50px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05)", "purpose": "Grounds rendered 3D bodies and large floating panels." },
+      { "name": "panel-deep", "value": "0 26px 55px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05)", "purpose": "Large floating panels, modals, settings dock." },
+      { "name": "lift", "value": "0 10px 25px rgba(0, 0, 0, 0.5)", "purpose": "Hover elevation for cards and buttons." },
+      { "name": "accent-gold-glow", "value": "0 0 8px var(--accent-gold)", "purpose": "Lit state for the active dot and the Sun." },
+      { "name": "accent-cyan-glow", "value": "0 0 14px rgba(56, 189, 248, 0.35)", "purpose": "Live/focus glow on telemetry and focus rings." }
+    ],
+    "motion": [
+      { "name": "ease-spring", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "UI state transitions, dot-nav, button lifts, kinetic chip." },
+      { "name": "ease-smooth", "value": "cubic-bezier(0.32, 0.72, 0, 1)", "purpose": "Longer cinematic movements." },
+      { "name": "ease-in-out", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default fade/opacity transitions." },
+      { "name": "live-blink", "value": "1.8s ease-in-out infinite", "purpose": "Cyan dot blink on live-data orbit tags." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single lit action on a frame — gold pill with a kinetic arrow chip.",
+      "html": "<button class=\"ds-btn-primary\"><span>Khám phá 3D</span><span class=\"ds-chip\">→</span></button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 9999px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 60%, #b45309 100%); color: #050811; font-family: 'Times New Roman', Georgia, serif; font-size: 0.94rem; font-weight: 700; border: none; cursor: pointer; transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4); } .ds-btn-primary:hover { transform: translateY(-2px); filter: brightness(1.1); } .ds-btn-primary:active { transform: scale(0.97); } .ds-btn-primary:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; } .ds-chip { width: 20px; height: 20px; border-radius: 50%; background: rgba(0, 0, 0, 0.2); display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover .ds-chip { transform: translateX(3px); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary glass action — quiet until hovered, then brightens.",
+      "html": "<button class=\"ds-btn-ghost\">Về đầu trang</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 11px 18px; border-radius: 9999px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: #94a3b8; font-family: 'Times New Roman', Georgia, serif; font-size: 0.92rem; font-weight: 500; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-ghost:hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.16); color: #ffffff; } .ds-btn-ghost:active { transform: scale(0.97); } .ds-btn-ghost:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }"
+    },
+    {
+      "name": "Live-Data Chip",
+      "kind": "chip",
+      "refersTo": "chip-orbit",
+      "description": "The signature telemetry tag on every planet — mono uppercase with a blinking cyan dot.",
+      "html": "<span class=\"ds-orbtag\"><span class=\"ds-orbtag-dot\"></span>THEO DÕI THỜI GIAN THỰC</span>",
+      "css": ".ds-orbtag { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 9999px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; color: #94a3b8; } .ds-orbtag-dot { width: 5px; height: 5px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 8px #38bdf8; animation: ds-blink 1.8s ease-in-out infinite; } @keyframes ds-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }"
+    },
+    {
+      "name": "Glass Card",
+      "kind": "card",
+      "refersTo": "card-glass",
+      "description": "Dossier panel surface — blurred glass over deep space, flat until hovered.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-label\">HÀNH TINH</div><div class=\"ds-title\">Sao Mộc</div><p class=\"ds-body\">Hành tinh lớn nhất hệ Mặt Trời với 146+ vệ tinh đã xác nhận.</p></div>",
+      "css": ".ds-card { background: rgba(6, 11, 24, 0.78); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 18px; padding: 24px; backdrop-filter: blur(14px); transition: box-shadow 0.2s, border-color 0.2s; } .ds-card:hover { border-color: rgba(255, 255, 255, 0.2); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); } .ds-label { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; } .ds-title { font-family: 'Times New Roman', Georgia, serif; font-size: 1.6rem; font-weight: 600; color: #f8fafc; margin-bottom: 8px; } .ds-body { font-family: 'Times New Roman', Georgia, serif; font-size: 0.94rem; line-height: 1.6; color: #94a3b8; }"
+    },
+    {
+      "name": "Dot Nav",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Right-edge vertical rail — 8px dots that stretch into 20px gold pills when active.",
+      "html": "<nav class=\"ds-dots\"><button class=\"ds-dot\" title=\"Sao Thủy\"></button><button class=\"ds-dot active\" title=\"Sao Kim\"></button><button class=\"ds-dot\" title=\"Trái Đất\"></button></nav>",
+      "css": ".ds-dots { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 100; } .ds-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); border: none; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-dot:hover { background: rgba(255, 255, 255, 0.5); transform: scale(1.3); } .ds-dot.active { height: 20px; border-radius: 4px; background: #fdb813; box-shadow: 0 0 10px rgba(253, 184, 19, 0.38); } .ds-dot:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "search",
+      "description": "Free-explore search/telemetry field — dark glass with cyan focus glow.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Tìm kiếm hành tinh...\" />",
+      "css": ".ds-input { background: rgba(6, 11, 24, 0.78); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 10px 14px; color: #f8fafc; font-family: 'Times New Roman', Georgia, serif; font-size: 0.94rem; transition: border-color 0.2s, box-shadow 0.2s; } .ds-input::placeholder { color: #64748b; } .ds-input:hover { border-color: rgba(255, 255, 255, 0.16); } .ds-input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 8px rgba(56, 189, 248, 0.35); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Night-Desk Observatory",
+    "overview": "This is the design voice of a personal observatory at night: an astronomer's desk lamp glowing warm gold against an ink-black sky, a cool cyan monitor edge, and every number set in museum-legend serif — precise, legible, and quietly beautiful. The interface is a living telescope: it recedes behind the 3D stage, surfaces are thin glass that float over deep space, and nothing decorative ever competes with the data or the planet.\n\nThe personality is cinematic and editorial — high contrast, low saturation, generous black, restrained accent. Density is moderate in the dossier panels (bento stats, spectrum bars, fact cards) but the composition breathes: full-bleed sections scroll as discrete frames, each planet owns its own frame with one bold serif name and a quiet English subtitle. Beauty comes from the rendered 3D body and from typographic clarity, not from interface ornament.\n\nThe motion grammar is slow, easing, and weighty: spring curves (cubic-bezier(0.16, 1, 0.3, 1)) on UI state changes, bloom-glows pulsing gently on the live body, and one-frame-per-scroll snap navigation. Everything moves like machinery in a planetarium, never like a marketing site.",
+    "keyCharacteristics": [
+      "Ink-deep space backgrounds (#020409) with thin glass surfaces (rgba(255,255,255,0.08) borders)",
+      "Gold primary accent used sparingly (≤10% of a screen) as the \"lit lamp\" signal",
+      "Cyan secondary as the \"instrument readout\" color for telemetry, tags, and focus",
+      "Editorial serif display (Times New Roman) for names and headlines; mono label caps for metadata",
+      "3D stage is the hero; UI is glass furniture around it"
+    ],
+    "rules": [
+      { "name": "The One-Lamp Rule", "body": "The gold primary accent appears on ≤10% of any given screen, and usually on exactly one element. When gold is lit, it is the only thing asking for attention; if more than one gold element fights on a frame, demote one to cyan or neutral.", "section": "colors" },
+      { "name": "The One-Name Rule", "body": "Only one serif Display/Headline may lead a frame. Section eyebrows and captions are mono uppercase; the rest is body serif. Two competing serif headlines on one screen reads as a newspaper, not an observatory.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are glass-flat at rest — no shadow until state demands it. Glow and lift appear only in response to hover, focus, or \"live\" status. If a frame glows in more than two places, it is over-lit.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use Times New Roman serif for all headlines and names; mono uppercase labels for metadata only.",
+      "Do keep the gold primary accent to one lit element per frame.",
+      "Do give every celestial-body frame a full-viewport snap frame with exactly one Display headline and one live-data chip.",
+      "Do use the cyan instrument color for all telemetry, tags, focus rings, and live indicators.",
+      "Do render bodies on their real texture maps and keep all NASA/ESA/JAXA/IAU data accurate and sourced.",
+      "Do place the active dot-nav indicator as a stretched gold pill with glow."
+    ],
+    "donts": [
+      "Don't add more than two glowing elements to a single frame (The Flat-By-Default Rule).",
+      "Don't use sharp corners on buttons, chips, tooltips, or the dot-nav.",
+      "Don't set accent colors on body text — accent is for lit states and data only; copy is primary/secondary neutral text.",
+      "Don't break the mandatory scroll-snap step per section; the showcase is one-frame-per-scroll.",
+      "Don't add decorative gradients over the 3D stage — the planet is the ornament.",
+      "Don't remove or reorder any of the 9 celestial bodies or the classification/footer frames."
+    ]
+  }
+}
