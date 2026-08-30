@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { InfoTabType, QualityPreset, ScaleMode } from '../types/planet';
 import { soundEngine } from '../utils/soundEngine';
 import { allCelestialBodies, planets } from '../data/planets';
-import { loadPersistedSettings, savePersistedSettings } from '../utils/settingsStorage';
+import { loadPersistedSettings, savePersistedSettings, hasStoredSettings } from '../utils/settingsStorage';
+import { resolveAutoQuality } from '../utils/deviceProfile';
 
 export type ViewMode = 'showcase' | 'freeExplore' | 'panorama';
 
@@ -39,6 +40,8 @@ interface SolarState {
   isSettingsOpen: boolean;
   focusRequest: number;
   isPanoramaMode: boolean;
+  isDockCollapsed: boolean;
+  isHeaderCollapsed: boolean;
 
   // Actions
   setViewMode: (mode: ViewMode) => void;
@@ -67,6 +70,8 @@ interface SolarState {
   closeSettings: () => void;
   requestCameraFocus: () => void;
   togglePanoramaMode: () => void;
+  toggleDockCollapsed: () => void;
+  toggleHeaderCollapsed: () => void;
 
   // Tour controls
   startTour: () => void;
@@ -84,7 +89,7 @@ export const useSolarStore = create<SolarState>((set, get) => ({
   isPaused: false,
   reverseTime: false,
   scaleMode: persisted.scaleMode ?? 'readable',
-  quality: persisted.quality ?? 'high',
+  quality: persisted.quality ?? (hasStoredSettings() ? 'high' : resolveAutoQuality()),
   showOrbits: persisted.showOrbits ?? true,
   showLabels: persisted.showLabels ?? true,
   showAsteroidBelt: persisted.showAsteroidBelt ?? true,
@@ -101,6 +106,8 @@ export const useSolarStore = create<SolarState>((set, get) => ({
   isSettingsOpen: false,
   focusRequest: 0,
   isPanoramaMode: false,
+  isDockCollapsed: false,
+  isHeaderCollapsed: false,
 
   setViewMode: (mode: ViewMode) => {
     soundEngine.playClick();
@@ -270,6 +277,14 @@ export const useSolarStore = create<SolarState>((set, get) => ({
       soundEngine.playClick();
     }
   },
+  toggleDockCollapsed: () => {
+    soundEngine.playClick();
+    set((s) => ({ isDockCollapsed: !s.isDockCollapsed }));
+  },
+  toggleHeaderCollapsed: () => {
+    soundEngine.playClick();
+    set((s) => ({ isHeaderCollapsed: !s.isHeaderCollapsed }));
+  },
   resetView: () => {
     soundEngine.playWhoosh();
     set({
@@ -352,5 +367,7 @@ useSolarStore.subscribe((state) => {
     soundEnabled: state.soundEnabled,
     volume: state.volume,
     timeScale: state.timeScale,
+    isDockCollapsed: state.isDockCollapsed,
+    isHeaderCollapsed: state.isHeaderCollapsed,
   });
 });

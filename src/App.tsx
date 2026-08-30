@@ -1,17 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { SolarCanvas } from './components/3d/SolarCanvas';
 import { Header } from './components/ui/Header';
 import { ControlsPanel } from './components/ui/ControlsPanel';
 import { PlanetSelector } from './components/ui/PlanetSelector';
 import { InfoPanel } from './components/ui/InfoPanel';
-import { TourGuideModal } from './components/ui/TourGuideModal';
-import { SettingsModal } from './components/ui/SettingsModal';
+const TourGuideModal = lazy(() => import('./components/ui/TourGuideModal').then((m) => ({ default: m.TourGuideModal })));
+const SettingsModal = lazy(() => import('./components/ui/SettingsModal').then((m) => ({ default: m.SettingsModal })));
 import { LoadingScreen } from './components/ui/LoadingScreen';
 import { SimulationClock } from './components/ui/SimulationClock';
 import { MiniMap } from './components/ui/MiniMap';
 import { ShowcaseView } from './components/showcase/ShowcaseView';
 import { useSolarStore } from './store/solarStore';
 import { allCelestialBodies } from './data/planets';
+import { useDeviceProfile } from './utils/deviceProfile';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -28,6 +29,14 @@ export default function App() {
   const isInfoPanelOpen = useSolarStore((s) => s.isInfoPanelOpen);
   const isPanoramaMode = useSolarStore((s) => s.isPanoramaMode);
   const togglePanoramaMode = useSolarStore((s) => s.togglePanoramaMode);
+  const { isTouch, tier: deviceTier } = useDeviceProfile();
+
+  // Step4: mark touch devices for enlarged hit-areas via CSS
+  useEffect(() => {
+    if (isTouch) document.body.classList.add('is-touch-device');
+    else document.body.classList.remove('is-touch-device');
+    return () => document.body.classList.remove('is-touch-device');
+  }, [isTouch]);
 
   // Keyboard shortcut navigation for freeExplore mode
   useEffect(() => {
@@ -121,20 +130,26 @@ export default function App() {
           {!isPanoramaMode && (
             <>
               <Header />
-              <TourGuideModal />
+              <Suspense fallback={null}>
+                <TourGuideModal />
+              </Suspense>
               <InfoPanel />
               <ControlsPanel />
               <PlanetSelector />
-              <SettingsModal />
+              <Suspense fallback={null}>
+                <SettingsModal />
+              </Suspense>
               <SimulationClock />
               <MiniMap />
 
               {/* Interactive Helper Hint */}
+              {!isTouch && (
               <div className="keyboard-hint" title="Phim tat dieu khien">
                 <span>
                   Phím tắt: <strong>Space</strong> (Tạm dừng) • <strong>← / →</strong> (Chuyển hành tinh) • <strong>I</strong> (Kéo ra / Thu lại bảng) • <strong>Esc</strong> (Toàn cảnh)
                 </span>
               </div>
+              )}
             </>
           )}
 

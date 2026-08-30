@@ -72,8 +72,9 @@ export function MiniMap() {
             <div className="radar-sweep-beam" />
 
             <svg
-              width={MAP_SIZE}
-              height={MAP_SIZE}
+              width="100%"
+              height="100%"
+              preserveAspectRatio="xMidYMid meet"
               viewBox={`0 0 ${MAP_SIZE} ${MAP_SIZE}`}
               className="radar-svg-canvas"
             >

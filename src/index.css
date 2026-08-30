@@ -119,6 +119,7 @@ a, button, input, select, textarea, [role="button"] {
 .app-container {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   position: relative;
   overflow: hidden;
 }
@@ -731,8 +732,7 @@ a, button, input, select, textarea, [role="button"] {
   border: 1px solid var(--glass-border);
   box-shadow: 0 24px 50px rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(28px);
-  width: 250px;
-  width: 240px;
+  width: clamp(200px, 60vw, 250px);
 }
 
 .telemetry-core {
@@ -1138,8 +1138,7 @@ a, button, input, select, textarea, [role="button"] {
 
 .radar-screen-wrap {
   position: relative;
-  width: 180px; height: 180px;
-  width: 156px; height: 156px;
+  width: clamp(140px, 38vw, 180px); height: clamp(140px, 38vw, 180px);
   border-radius: 50%;
   overflow: hidden;
   background: radial-gradient(circle at center, rgba(6, 18, 38, 0.85) 0%, rgba(2, 6, 16, 0.95) 100%);
@@ -2625,6 +2624,7 @@ a, button, input, select, textarea, [role="button"] {
 .ares-showcase {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   position: relative;
   overflow: hidden;
   background: var(--bg-deep-space);
@@ -2644,9 +2644,7 @@ a, button, input, select, textarea, [role="button"] {
 }
 
 .ares-ambience {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+  display: none !important;
 }
 .ares-ambience .orb-1 {
   position: absolute;
@@ -2655,7 +2653,7 @@ a, button, input, select, textarea, [role="button"] {
   width: 500px;
   height: 500px;
   border-radius: 50%;
-  filter: blur(100px);
+  filter: none;
   opacity: 0.38;
   transition: background 0.8s ease;
 }
@@ -2676,7 +2674,8 @@ a, button, input, select, textarea, [role="button"] {
   right: 0;
   width: 55vw;
   height: 100vh;
-  z-index: 1;
+  height: 100dvh;
+  z-index: 5;
   pointer-events: auto;
 }
 
@@ -2801,17 +2800,24 @@ a, button, input, select, textarea, [role="button"] {
 /* Left Scroll Column */
 .ares-scroll-content {
   position: relative;
-  z-index: 10;
+  z-index: 2;
   width: 45vw;
   height: 100vh;
+  height: 100dvh;
   overflow-y: auto;
   scroll-behavior: smooth;
   scroll-snap-type: y mandatory;
   scroll-snap-stop: always;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-  background: linear-gradient(90deg, rgba(2, 4, 10, 0.92) 0%, rgba(2, 4, 10, 0.6) 100%);
-  scrollbar-width: thin;
+
+  background: transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   user-select: text;
+}
+.ares-scroll-content::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .ares-scroll-content::selection,
@@ -2823,6 +2829,7 @@ a, button, input, select, textarea, [role="button"] {
 /* Hero Section */
 .ares-hero {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2912,6 +2919,7 @@ a, button, input, select, textarea, [role="button"] {
 /* Planet Section Container */
 .ares-planet-section {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -3017,7 +3025,7 @@ a, button, input, select, textarea, [role="button"] {
 
 /* Atmospheric Composition Spectrum Box */
 .spatial-spectrum-box {
-  background: rgba(6, 11, 24, 0.55);
+  background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   padding: 12px 14px;
@@ -3099,7 +3107,7 @@ a, button, input, select, textarea, [role="button"] {
 }
 
 .spatial-bento-card {
-  background: rgba(6, 11, 24, 0.62);
+  background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
@@ -3748,6 +3756,10 @@ a, button, input, select, textarea, [role="button"] {
   .ares-3d-stage {
     display: none;
   }
+  
+  .ares-section-glow {
+    display: none;
+  }
   .ares-planet-section,
   .ares-hero,
   .ares-classification,
@@ -3778,7 +3790,116 @@ a, button, input, select, textarea, [role="button"] {
 }
 
 /* ============================================
-   Panorama Mode � Fullscreen Immersive Viewing
+   Mobile Phone (=640px) � Separate from Tablet
+   ============================================ */
+@media (max-width: 640px) {
+  .island-header-wrapper {
+    padding: 0 8px;
+    top: 8px;
+  }
+  .island-header-shell {
+    max-width: calc(100vw - 12px);
+    padding: 3px;
+  }
+  .island-header-core {
+    gap: 4px;
+    padding: 4px 8px;
+  }
+  .island-brand-text {
+    display: none;
+  }
+  .island-center-nav {
+    gap: 4px;
+  }
+  .island-scale-switcher {
+    display: none;
+  }
+  .island-layer-toggles {
+    gap: 4px;
+  }
+  .layer-toggle-chip .chip-text {
+    display: none;
+  }
+  .telemetry-controls-dock {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    bottom: calc(88px + env(safe-area-inset-bottom));
+    width: clamp(200px, 92vw, 260px);
+  }
+  .telemetry-shell {
+    width: 100%;
+  }
+  .dossier-drawer-container {
+    width: calc(100vw - 16px);
+    right: 8px;
+    left: 8px;
+    top: calc(56px + env(safe-area-inset-top));
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .dossier-collapsed-trigger-wrapper {
+    right: 8px;
+    top: auto;
+    bottom: calc(110px + env(safe-area-inset-bottom));
+    transform: none;
+  }
+  .celestial-radar-widget {
+    display: block !important;
+    top: auto;
+    bottom: calc(190px + env(safe-area-inset-bottom));
+    left: 8px;
+    transform: none;
+
+  }
+  .radar-screen-wrap {
+    width: clamp(120px, 32vw, 156px) !important;
+    height: clamp(120px, 32vw, 156px) !important;
+  }
+  .settings-modal-backdrop {
+    padding: 12px;
+    align-items: flex-end;
+  }
+  .settings-modal-shell {
+    width: calc(100vw - 16px);
+    max-width: none;
+  }
+  .panorama-exit-hint {
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    padding: 8px 14px;
+    font-size: 0.72rem;
+    max-width: calc(100vw - 24px);
+    text-align: center;
+    white-space: normal;
+  }
+  .dock-selector-wrapper {
+    bottom: 8px;
+    padding: 0 8px;
+  }
+  .dock-selector-shell {
+    max-width: calc(100vw - 16px);
+  }
+  .ares-showcase.is-low-tier .ares-3d-stage {
+    display: none !important;
+  }
+  .ares-showcase.not-low-tier .ares-3d-stage {
+    display: block !important;
+    position: sticky;
+    top: 0;
+    height: clamp(220px, 42vh, 320px);
+    width: 100%;
+    z-index: 2;
+  }
+  .ares-scroll-content {
+    width: 100vw;
+  }
+  .ares-showcase.not-low-tier .ares-section-glow {
+    display: none !important;
+  }
+}
+
+/* ============================================
+   Panorama Mode
+ � Fullscreen Immersive Viewing
    ============================================ */
 .panorama-exit-hint {
   position: fixed;
@@ -3902,11 +4023,7 @@ a, button, input, select, textarea, [role="button"] {
 
 /* --- Showcase: Section Ambient Glow Overlay --- */
 .ares-section-glow {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.4;
+  display: none !important;
 }
 .ares-planet-section > *:not(.ares-section-glow),
 .ares-classification > *:not(.ares-section-glow) {
@@ -4114,3 +4231,210 @@ a, button, input, select, textarea, [role="button"] {
 }
 .text-blue { color: var(--accent-cyan); }
 .text-red { color: var(--accent-rose); }
+/* Safe-area insets for notch / gesture bar — additive, not overriding base layout */
+.island-header-wrapper {
+  padding-top: env(safe-area-inset-top);
+  padding-left: calc(16px + env(safe-area-inset-left));
+  padding-right: calc(16px + env(safe-area-inset-right));
+  top: calc(14px + env(safe-area-inset-top));
+}
+.telemetry-controls-dock {
+  bottom: calc(104px + env(safe-area-inset-bottom));
+  left: calc(20px + env(safe-area-inset-left));
+}
+.dossier-drawer-container {
+  top: calc(74px + env(safe-area-inset-top));
+  right: calc(20px + env(safe-area-inset-right));
+  bottom: calc(96px + env(safe-area-inset-bottom));
+}
+.panorama-exit-hint {
+  bottom: calc(32px + env(safe-area-inset-bottom));
+}
+
+/* Touch-target expansion — visual size 30px, hit-area 44px via pseudo-element */
+.is-touch-device .island-action-btn,
+.is-touch-device .btn-reset-view,
+.is-touch-device .island-sun-orb {
+  position: relative;
+}
+.is-touch-device .island-action-btn::after,
+.is-touch-device .btn-reset-view::after,
+.is-touch-device .island-sun-orb::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+}
+
+/* Landscape phone — compress vertical chrome when height is very short */
+@media (max-height: 480px) and (orientation: landscape) {
+  .island-header-wrapper {
+    top: 4px;
+  }
+  .island-header-core {
+    padding: 3px 8px;
+    gap: 4px;
+  }
+  .island-brand-text {
+    display: none;
+  }
+  .telemetry-controls-dock {
+    bottom: 12px;
+    transform: scale(0.88);
+
+  }
+  .dossier-drawer-container {
+    top: 8px;
+    bottom: 8px;
+  }
+  .panorama-exit-hint {
+    bottom: 8px;
+    padding: 6px 12px;
+  }
+}
+/* ============================================================
+   Collapsible Panels — Per user request (remembered separately)
+   ============================================================ */
+
+/* Dock: slide down, pill at bottom center */
+.dock-selector-wrapper {
+  transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.dock-selector-wrapper.is-collapsed {
+  transform: translateY(calc(100% - 28px));
+  pointer-events: auto;
+}
+.dock-selector-wrapper.is-collapsed .dock-collapse-handle {
+  top: 4px;
+}
+.dock-collapse-handle {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 20px;
+  border-radius: 9999px;
+  background: rgba(6, 11, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  transition: all 0.2s ease;
+}
+.dock-collapse-handle:hover {
+  background: rgba(14, 22, 44, 0.98);
+  color: #fff;
+}
+.dock-collapsed-pill {
+  display: none !important;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(8, 14, 30, 0.96), rgba(4, 8, 18, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 101;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
+  backdrop-filter: blur(16px);
+  transition: all 0.2s var(--ease-spring);
+}
+.dock-collapsed-pill:hover {
+  transform: translateX(-50%) translateY(-2px);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: 0 16px 36px rgba(0,0,0,0.7), 0 0 12px var(--accent-cyan-glow);
+}
+
+/* Header: slide to right, tab at right edge */
+.island-header-wrapper {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.island-header-wrapper.is-collapsed {
+  transform: translateX(calc(100% + 24px));
+  pointer-events: none;
+}
+.header-collapsed-tab {
+  position: fixed;
+  right: 0;
+  top: 14px;
+  width: 36px;
+  height: 72px;
+  border-radius: 12px 0 0 12px;
+  background: linear-gradient(135deg, rgba(8, 14, 30, 0.96), rgba(4, 8, 18, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-right: none;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 102;
+  box-shadow: -8px 0 24px rgba(0,0,0,0.5);
+  backdrop-filter: blur(16px);
+  transition: all 0.2s ease;
+}
+.header-collapsed-tab:hover {
+  width: 40px;
+  background: rgba(14, 22, 44, 0.98);
+  color: var(--accent-cyan);
+}
+.header-collapse-handle {
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+}
+
+/* Info Bottom Sheet — replaces right drawer */
+.dossier-collapsed-trigger-wrapper {
+  top: auto !important;
+  left: auto !important;
+  right: 20px !important;
+  bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+  transform: none !important;
+}
+.dossier-drawer-container {
+  top: calc(74px + env(safe-area-inset-top)) !important;
+  right: calc(20px + env(safe-area-inset-right)) !important;
+  bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+  left: auto !important;
+  transform: none !important;
+  width: min(480px, calc(100vw - 32px)) !important;
+  height: auto !important;
+  max-height: calc(100vh - 74px - 96px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100dvh - 74px - 96px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+  border-radius: 24px !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.dossier-drawer-container .dossier-shell {
+  border-radius: 24px !important;
+}
+.dossier-drawer-container .dossier-core {
+  border-radius: 24px !important;
+}
+.dossier-outer-collapse-handle {
+  display: none !important;
+}
+@media (max-width: 640px) {
+  .dossier-drawer-container {
+    width: 100vw !important;
+    left: 0 !important;
+    transform: none !important;
+    border-radius: 20px 20px 0 0 !important;
+    height: 58vh !important;
+    height: 58dvh !important;
+  }
+  .dossier-collapsed-trigger-wrapper {
+    bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+  }
+}

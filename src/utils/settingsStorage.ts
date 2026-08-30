@@ -10,6 +10,8 @@ export interface PersistedSettings {
   soundEnabled: boolean;
   volume: number;
   timeScale: number;
+  isDockCollapsed?: boolean;
+  isHeaderCollapsed?: boolean;
 }
 
 const STORAGE_KEY = 'solar-system-3d-settings';
@@ -23,6 +25,14 @@ export function loadPersistedSettings(): Partial<PersistedSettings> {
     return parsed;
   } catch {
     return {};
+  }
+}
+
+export function hasStoredSettings(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEY) !== null;
+  } catch {
+    return false;
   }
 }
 

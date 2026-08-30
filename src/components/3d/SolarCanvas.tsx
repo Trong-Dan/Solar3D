@@ -9,6 +9,7 @@ import { Planet } from './Planet';
 import { AsteroidBelt } from './AsteroidBelt';
 import { CosmicDust } from './CosmicDust';
 import { useSolarStore } from '../../store/solarStore';
+import { useDeviceProfile } from '../../utils/deviceProfile';
 import { QualityPreset } from '../../types/planet';
 
 
@@ -94,6 +95,7 @@ const qualitySettings: Record<
 export function SolarCanvas() {
   const quality = useSolarStore((s) => s.quality);
   const q = qualitySettings[quality];
+  const { isTouch } = useDeviceProfile();
 
   return (
     <div className="canvas-container">
@@ -135,8 +137,9 @@ export function SolarCanvas() {
           enableRotate={true}
           minDistance={30}
           maxDistance={120}
-          rotateSpeed={0.45}
-          zoomSpeed={0.65}
+          rotateSpeed={isTouch ? 0.3 : 0.45}
+          zoomSpeed={isTouch ? 0.5 : 0.65}
+          touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
           dampingFactor={0.1}
           enableDamping={true}
           maxPolarAngle={Math.PI * 0.88}

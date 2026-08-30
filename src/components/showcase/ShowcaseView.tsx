@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { Compass, Volume2, VolumeX, ChevronRight, Sparkles, Radio, Rocket, Orbit, Layers, Globe } from 'lucide-react';
 import { allCelestialBodies } from '../../data/planets';
 import { useSolarStore } from '../../store/solarStore';
+import { useDeviceProfile } from '../../utils/deviceProfile';
 import { PlanetShowcaseStage } from './PlanetShowcaseStage';
 import { ClassificationSection } from './ClassificationSection';
 import type { PlanetData } from '../../types/planet';
@@ -233,7 +234,7 @@ function PlanetSection({
       <div
         className="ares-section-glow"
         style={{
-          background: `radial-gradient(ellipse at 20% 50%, ${theme.glow} 0%, transparent 60%)`,
+          background: `radial-gradient(ellipse at 50% 50%, ${theme.glow} 0%, transparent 52%)`,
         }}
       />
 
@@ -416,6 +417,7 @@ export function ShowcaseView() {
   // Pause planet rotation while the pointer interacts with the stage (right half).
   // Rotation resumes when the pointer leaves the stage (clicking elsewhere / scrolling to other half).
   const [isPaused, setIsPaused] = useState(false);
+  const { tier: deviceTier, isNarrowViewport } = useDeviceProfile();
 
   // Bloom reveal & section tracking
   useBloomReveal(scrollContainerRef);
@@ -450,8 +452,10 @@ export function ShowcaseView() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showcaseIndex, scrollToSection]);
 
+  const isLowTierOnMobile = deviceTier === "low" && isNarrowViewport;
+
   return (
-    <div className="ares-showcase">
+    <div className={`ares-showcase ${deviceTier === "low" ? "is-low-tier" : "not-low-tier"} ${isNarrowViewport ? "is-narrow" : ""} ${isLowTierOnMobile ? "is-mobile-low" : ""}`.trim()}>
       {/* Background Starry Mesh Grid */}
       <div className="ares-grid-noise" aria-hidden="true" />
       <div className="ares-ambience" aria-hidden="true">

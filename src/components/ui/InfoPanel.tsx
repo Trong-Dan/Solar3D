@@ -91,16 +91,6 @@ export function InfoPanel() {
           <div className="trigger-frame-pulse-ring" />
           <div className="trigger-frame-shell">
             <div className="trigger-frame-core">
-              <div
-                className="trigger-avatar-orb"
-                style={{
-                  background:
-                    currentPlanet.id === 'sun'
-                      ? 'radial-gradient(circle at 35% 35%, #fffde7, #f59e0b, #d97706)'
-                      : `radial-gradient(circle at 35% 35%, #ffffff 0%, ${currentPlanet.color} 60%, #070a14 100%)`,
-                  boxShadow: `0 0 16px ${currentPlanet.color}aa, inset 0 1px 2px rgba(255,255,255,0.6)`,
-                }}
-              />
               <div className="trigger-text-stack">
                 <span className="trigger-badge-tag">HỒ SƠ THIÊN VĂN</span>
                 <span className="trigger-planet-title">{currentPlanet.name}</span>
@@ -141,16 +131,6 @@ export function InfoPanel() {
           {/* Header Bar */}
           <div className="dossier-header">
             <div className="dossier-header-main">
-              <div
-                className="dossier-avatar-orb"
-                style={{
-                  background:
-                    currentPlanet.id === 'sun'
-                      ? 'radial-gradient(circle at 35% 35%, #fffde7, #f59e0b, #d97706)'
-                      : `radial-gradient(circle at 35% 35%, #ffffff 0%, ${currentPlanet.color} 60%, #070a14 100%)`,
-                  boxShadow: `0 0 18px ${currentPlanet.color}88, inset 0 1px 2px rgba(255,255,255,0.6)`,
-                }}
-              />
               <div className="dossier-title-stack">
                 <div className="dossier-eyebrow-tag">
                   <span className="eyebrow-dot" style={{ backgroundColor: currentPlanet.color }} />
