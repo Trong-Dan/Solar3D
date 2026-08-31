@@ -110,7 +110,7 @@ export default function App() {
   ]);
 
   return (
-    <main className="app-container">
+    <main className={`app-container ${isInfoPanelOpen ? 'has-info-panel-open' : ''}`}>
       {!isPanoramaMode && <div className="app-vignette" aria-hidden="true" />}
       {isLoading && <LoadingScreen onFinished={() => setIsLoading(false)} />}
 
