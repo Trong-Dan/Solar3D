@@ -7,7 +7,6 @@ import { PlanetShowcaseStage } from './PlanetShowcaseStage';
 import { ClassificationSection } from './ClassificationSection';
 import { ShareButton } from '../ui/ShareButton';
 import { SupportButton } from '../monetization/SupportButton';
-import { AffiliateSection } from '../monetization/AffiliateSection';
 import type { PlanetData } from '../../types/planet';
 
 /* ─── Localised labels & Chromatic Identity ─── */
@@ -641,9 +640,6 @@ export function ShowcaseView() {
 
             {/* Support / Donation Card */}
             <SupportButton variant="full" />
-
-            {/* Affiliate Recommendations */}
-            <AffiliateSection variant="cards" />
           </div>
         </section>
       </div>
