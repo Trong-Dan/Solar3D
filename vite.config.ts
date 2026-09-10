@@ -9,9 +9,9 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api/sepay': {
-        target: 'https://my.sepay.vn',
+        target: 'https://userapi.sepay.vn',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/sepay/, '/userapi/transactions/list'),
+        rewrite: (path) => path.replace(/^\/api\/sepay/, '/v2/transactions'),
       },
     },
   },

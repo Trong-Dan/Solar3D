@@ -271,8 +271,7 @@ class AnalyticsTracker {
     }
 
     try {
-      const accountNo = this.bankSettings.accountNo.trim();
-      const params = `limit=50${accountNo ? `&account_number=${encodeURIComponent(accountNo)}` : ''}`;
+      const params = 'per_page=50';
 
       // Gọi qua endpoint proxy /api/sepay để vượt qua chính sách CORS của trình duyệt
       const proxyUrl = `/api/sepay?${params}`;
@@ -287,8 +286,8 @@ class AnalyticsTracker {
           },
         });
       } catch {
-        // Dự phòng gọi trực tiếp nếu proxy chưa phản hồi
-        const directUrl = `https://my.sepay.vn/userapi/transactions/list?${params}`;
+        // Dự phòng gọi trực tiếp tới SePay V2 nếu proxy chưa phản hồi
+        const directUrl = `https://userapi.sepay.vn/v2/transactions?${params}`;
         response = await fetch(directUrl, {
           method: 'GET',
           headers: {
@@ -303,7 +302,7 @@ class AnalyticsTracker {
           return {
             success: false,
             count: 0,
-            message: 'API Token SePay không hợp lệ. Vui lòng kiểm tra lại mã Token bạn đã copy trên SePay.vn.',
+            message: 'API Token SePay không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại mã Token bạn đã copy trên SePay.vn.',
           };
         }
         if (response.status === 404) {
@@ -317,30 +316,60 @@ class AnalyticsTracker {
       }
 
       const data = await response.json();
-      const transactions = data.transactions;
+      // Hỗ trợ cả SePay API V2 (data.data), V1 (data.transactions), hoặc mảng trực tiếp
+      const transactions: any[] = Array.isArray(data.data)
+        ? data.data
+        : Array.isArray(data.transactions)
+        ? data.transactions
+        : Array.isArray(data.messages)
+        ? data.messages
+        : Array.isArray(data)
+        ? data
+        : [];
 
       if (!Array.isArray(transactions)) {
         return { success: false, count: 0, message: 'Phản hồi từ SePay không chứa danh sách giao dịch hợp lệ.' };
       }
 
+      const targetAcc = this.bankSettings.accountNo.replace(/\D/g, '');
       let addedCount = 0;
+
       for (const tx of transactions) {
-        const amountIn = parseFloat(tx.amount_in || '0');
-        // Chỉ lấy tiền vào tài khoản (ủng hộ/chuyển khoản)
-        if (amountIn <= 0) continue;
+        // Lấy số tiền vào tài khoản (ủng hộ/chuyển khoản)
+        const rawAmount = tx.amount_in !== undefined && tx.amount_in !== null ? tx.amount_in : tx.amount;
+        const amountIn =
+          typeof rawAmount === 'number'
+            ? rawAmount
+            : parseFloat(String(rawAmount || '0').replace(/[^\d.-]/g, '')) || 0;
 
-        const uniqueId = `sepay_${tx.id}`;
-        const refNumber = (tx.reference_number || String(tx.id)).trim();
+        if (amountIn <= 0 || tx.transfer_type === 'out') continue;
 
-        // Tránh trùng lặp với giao dịch đã có
+        // Nếu có số tài khoản và không trùng khớp với số tài khoản cấu hình thì bỏ qua
+        if (tx.account_number && targetAcc) {
+          const txAcc = String(tx.account_number).replace(/\D/g, '');
+          if (txAcc && targetAcc && !targetAcc.includes(txAcc) && !txAcc.includes(targetAcc)) {
+            continue;
+          }
+        }
+
+        const rawId = String(tx.id || tx.reference_number || Date.now());
+        const uniqueId = rawId.startsWith('sepay_') ? rawId : `sepay_${rawId}`;
+        const refNumber = String(tx.reference_number || tx.code || tx.id || '').trim();
+
+        // Tránh trùng lặp với giao dịch đã có trong sổ cái
         const exists = this.donations.some(
-          (d) => d.id === uniqueId || (d.transactionRef && d.transactionRef === refNumber)
+          (d) => d.id === uniqueId || (refNumber && d.transactionRef && d.transactionRef === refNumber)
         );
         if (exists) continue;
 
+        // Chuẩn hóa thời gian giao dịch (mặc định múi giờ GMT+7 Việt Nam nếu thiếu)
         let txTimestamp = Date.now();
         if (tx.transaction_date) {
-          const parsed = new Date(tx.transaction_date.replace(' ', 'T')).getTime();
+          let dateStr = String(tx.transaction_date).trim();
+          if (!dateStr.includes('T') && dateStr.includes(' ')) {
+            dateStr = dateStr.replace(' ', 'T') + '+07:00';
+          }
+          const parsed = new Date(dateStr).getTime();
           if (!isNaN(parsed)) txTimestamp = parsed;
         }
 
@@ -353,13 +382,14 @@ class AnalyticsTracker {
         });
 
         const content = (tx.transaction_content || '').trim();
-        const donorName = content ? content : `Chuyển khoản ${tx.bank_brand_name || 'MB Bank'}`;
+        const bankBrand = tx.bank_brand_name || this.bankSettings.bankName || 'MB Bank';
+        const donorName = content ? content : `Chuyển khoản ${bankBrand}`;
 
         const newDonation: RealDonation = {
           id: uniqueId,
           donorName,
           amount: Math.round(amountIn),
-          message: content || 'Chuyển khoản ủng hộ qua mã QR MB Bank',
+          message: content || `Chuyển khoản ủng hộ qua mã QR ${bankBrand}`,
           method: 'vietqr',
           status: 'confirmed',
           timestamp: txTimestamp,
@@ -376,14 +406,21 @@ class AnalyticsTracker {
         this.donations.sort((a, b) => b.timestamp - a.timestamp);
         this.saveDonations();
         this.notifyListeners();
+        return {
+          success: true,
+          count: addedCount,
+          message: `Đồng bộ thành công! Đã ghi nhận thêm ${addedCount} giao dịch mới từ MB Bank.`,
+        };
       }
 
+      const totalAvailable = transactions.length;
       return {
         success: true,
-        count: addedCount,
-        message: addedCount > 0
-          ? `Đồng bộ thành công ${addedCount} khoản chuyển khoản mới từ MB Bank!`
-          : 'Đã kết nối MB Bank qua SePay: Hiện chưa có khoản chuyển tiền mới nào.',
+        count: 0,
+        message:
+          totalAvailable > 0
+            ? `Đã kết nối SePay: Toàn bộ ${totalAvailable} giao dịch MB Bank gần nhất đã được đồng bộ từ trước.`
+            : 'Đã kết nối SePay thành công: Hiện chưa có giao dịch mới nào trên tài khoản SePay.',
       };
     } catch {
       return {

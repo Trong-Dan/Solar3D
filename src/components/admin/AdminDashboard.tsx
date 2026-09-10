@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   DollarSign,
   ShoppingCart,
@@ -94,14 +94,7 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
     return () => unsubscribe();
   }, []);
 
-  // Tự động đồng bộ từ SePay khi Admin vào xem tab sao kê nếu đã có Token
-  useEffect(() => {
-    if (activeTab === 'ledger' && analyticsTracker.getSepayApiKey()) {
-      handleSyncSepay();
-    }
-  }, [activeTab]);
-
-  const handleSyncSepay = async (customKey?: string) => {
+  const handleSyncSepay = useCallback(async (customKey?: string) => {
     if (isSyncingSepay) return;
     setIsSyncingSepay(true);
     setSyncFeedback(null);
@@ -119,7 +112,31 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
     } finally {
       setIsSyncingSepay(false);
     }
-  };
+  }, [isSyncingSepay, sepayApiKey]);
+
+  // Tự động đồng bộ từ SePay ngay khi mở bảng điều hành và quét nền mỗi 30 giây
+  useEffect(() => {
+    const key = analyticsTracker.getSepayApiKey();
+    if (key) {
+      handleSyncSepay(key);
+    }
+
+    const interval = setInterval(() => {
+      const currentKey = analyticsTracker.getSepayApiKey();
+      if (currentKey) {
+        analyticsTracker.syncFromSepay(currentKey);
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [handleSyncSepay]);
+
+  // Tự động đồng bộ khi người dùng chuyển sang tab Tổng quan hoặc Sao kê
+  useEffect(() => {
+    if ((activeTab === 'overview' || activeTab === 'ledger') && analyticsTracker.getSepayApiKey()) {
+      handleSyncSepay();
+    }
+  }, [activeTab, handleSyncSepay]);
 
   const handleSaveSepayKey = (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,6 +310,17 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
           </div>
 
           <div className="admin-header-actions">
+            {sepayApiKey.trim() && (
+              <button
+                className={`admin-btn-sync ${isSyncingSepay ? 'syncing' : ''}`}
+                onClick={() => handleSyncSepay(sepayApiKey)}
+                disabled={isSyncingSepay}
+                title="Đồng bộ ngay các giao dịch mới nhất từ SePay (MB Bank)"
+              >
+                <RefreshCw size={14} className={isSyncingSepay ? 'animate-spin' : ''} />
+                <span>{isSyncingSepay ? 'Đang kiểm tra...' : 'Đồng bộ SePay'}</span>
+              </button>
+            )}
             <button
               className="admin-btn-add-donation"
               onClick={() => setIsAddModalOpen(true)}
@@ -343,6 +371,27 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
 
         {/* Tab Content */}
         <div className="admin-content-area">
+          {syncFeedback && (
+            <div
+              className={`admin-sync-feedback-banner ${syncFeedback.success ? 'success' : 'warning'} animate-fade-in`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '10px 16px',
+                borderRadius: '10px',
+                marginBottom: '16px',
+                fontSize: '0.85rem',
+                border: syncFeedback.success ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)',
+                background: syncFeedback.success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                color: syncFeedback.success ? '#34d399' : '#fbbf24',
+              }}
+            >
+              <RefreshCw size={15} className={isSyncingSepay ? 'animate-spin' : ''} />
+              <span>{syncFeedback.message}</span>
+            </div>
+          )}
+
           {activeTab === 'overview' && (
             <div className="admin-tab-overview animate-fade-in">
               {/* Default PIN Security Warning Banner */}
@@ -431,6 +480,22 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                     </p>
                   </div>
                   <div className="admin-card-header-actions">
+                    {sepayApiKey.trim() && (
+                      <button
+                        className="admin-btn-mini-add"
+                        onClick={() => handleSyncSepay(sepayApiKey)}
+                        disabled={isSyncingSepay}
+                        title="Đồng bộ SePay"
+                        style={{
+                          background: 'rgba(2, 132, 199, 0.2)',
+                          borderColor: 'rgba(56, 189, 248, 0.4)',
+                          color: '#38bdf8',
+                        }}
+                      >
+                        <RefreshCw size={13} className={isSyncingSepay ? 'animate-spin' : ''} />
+                        <span>{isSyncingSepay ? 'Đang kiểm tra...' : 'Đồng bộ SePay'}</span>
+                      </button>
+                    )}
                     <button
                       className="admin-btn-mini-add"
                       onClick={() => setIsAddModalOpen(true)}
@@ -858,7 +923,16 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                     </div>
                     <div className="sepay-step-item">
                       <span className="step-badge">3</span>
-                      <span>Vào <em>Tích hợp web &rarr; API Token</em>, sao chép API Token dán vào ô bên dưới:</span>
+                      <span>Vào <em>Tích hợp web &rarr; API Access &rarr; Tạo API Token</em>, sao chép API Token dán vào ô bên dưới:</span>
+                    </div>
+                    <div className="sepay-step-item">
+                      <span className="step-badge">4</span>
+                      <span>
+                        Cài đặt app <strong>SePay (trên Android)</strong> để đồng bộ biến động số dư từ App MB Bank (hoặc liên kết ngân hàng). Bạn có thể kiểm tra danh sách giao dịch SePay đã nhận tại{' '}
+                        <a href="https://my.sepay.vn/transactions" target="_blank" rel="noopener noreferrer">
+                          my.sepay.vn/transactions
+                        </a>.
+                      </span>
                     </div>
                   </div>
 

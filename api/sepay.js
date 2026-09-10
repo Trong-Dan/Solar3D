@@ -1,10 +1,10 @@
 // ================================================================
-// VERCEL SERVERLESS FUNCTION — SEPAY API PROXY
-// Giải quyết triệt để lỗi CORS khi trình duyệt gọi sang SePay.vn
+// VERCEL SERVERLESS FUNCTION — SEPAY API V2 PROXY
+// Kết nối trực tiếp tới SePay User API V2 chính thức
 // ================================================================
 
 export default async function handler(req, res) {
-  // Cấu hình CORS an toàn theo chuẩn W3C (tránh xung đột giữa wildcard và credentials)
+  // Cấu hình CORS an toàn theo chuẩn W3C
   const origin = req.headers.origin || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
   if (origin !== '*') {
@@ -30,11 +30,17 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Thiếu Authorization Token' });
   }
 
-  const { account_number, limit = '50' } = req.query || {};
-  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
-  const targetUrl = `https://my.sepay.vn/userapi/transactions/list?limit=${safeLimit}${
-    account_number ? `&account_number=${encodeURIComponent(account_number)}` : ''
-  }`;
+  const { account_number, limit = '50', per_page, bank_account_id } = req.query || {};
+  const safeLimit = Math.min(Math.max(1, parseInt(per_page || limit, 10) || 50), 100);
+
+  // Gọi tới SePay API V2 chính thức
+  let targetUrl = `https://userapi.sepay.vn/v2/transactions?per_page=${safeLimit}`;
+  if (account_number) {
+    targetUrl += `&account_number=${encodeURIComponent(account_number)}`;
+  }
+  if (bank_account_id) {
+    targetUrl += `&bank_account_id=${encodeURIComponent(bank_account_id)}`;
+  }
 
   try {
     const upstream = await fetch(targetUrl, {
@@ -42,6 +48,7 @@ export default async function handler(req, res) {
       headers: {
         Authorization: authHeader,
         'Content-Type': 'application/json',
+        'User-Agent': 'SolarSystem3D-App/1.0',
       },
     });
 
