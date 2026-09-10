@@ -6,10 +6,13 @@ import { PlanetSelector } from './components/ui/PlanetSelector';
 import { InfoPanel } from './components/ui/InfoPanel';
 const TourGuideModal = lazy(() => import('./components/ui/TourGuideModal').then((m) => ({ default: m.TourGuideModal })));
 const SettingsModal = lazy(() => import('./components/ui/SettingsModal').then((m) => ({ default: m.SettingsModal })));
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+const AdminAuthGate = lazy(() => import('./components/admin/AdminAuthGate').then((m) => ({ default: m.AdminAuthGate })));
 import { LoadingScreen } from './components/ui/LoadingScreen';
 import { SimulationClock } from './components/ui/SimulationClock';
 import { MiniMap } from './components/ui/MiniMap';
 import { ShowcaseView } from './components/showcase/ShowcaseView';
+import { Lock } from 'lucide-react';
 import { useSolarStore } from './store/solarStore';
 import { allCelestialBodies } from './data/planets';
 import { useDeviceProfile } from './utils/deviceProfile';
@@ -30,6 +33,20 @@ export default function App() {
   const isPanoramaMode = useSolarStore((s) => s.isPanoramaMode);
   const togglePanoramaMode = useSolarStore((s) => s.togglePanoramaMode);
   const { isTouch, tier: deviceTier } = useDeviceProfile();
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+
+  // Check URL parameter (?admin=portal or #admin) and session on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (sessionStorage.getItem('ss3d_admin_authenticated') === 'true') {
+      setIsAdminAuthenticated(true);
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('admin') === 'portal' || window.location.hash === '#admin') {
+      setIsAdminModalOpen(true);
+    }
+  }, []);
 
   // Step4: mark touch devices for enlarged hit-areas via CSS
   useEffect(() => {
@@ -38,9 +55,16 @@ export default function App() {
     return () => document.body.classList.remove('is-touch-device');
   }, [isTouch]);
 
-  // Keyboard shortcut navigation for freeExplore mode
+  // Keyboard shortcut navigation for freeExplore mode & Admin Portal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Admin shortcut: Ctrl+Shift+A or Cmd+Shift+A (works from anywhere)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        setIsAdminModalOpen((prev) => !prev);
+        return;
+      }
+
       // Ignore if user is typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
@@ -161,6 +185,37 @@ export default function App() {
           )}
         </>
       )}
+
+      {/* Admin Portal (Private Revenue & Asset Management Suite) */}
+      {isAdminModalOpen && (
+        <Suspense fallback={null}>
+          {isAdminAuthenticated ? (
+            <AdminDashboard
+              onClose={() => setIsAdminModalOpen(false)}
+              onLogout={() => {
+                sessionStorage.removeItem('ss3d_admin_authenticated');
+                setIsAdminAuthenticated(false);
+                setIsAdminModalOpen(false);
+              }}
+            />
+          ) : (
+            <AdminAuthGate
+              onSuccess={() => setIsAdminAuthenticated(true)}
+              onClose={() => setIsAdminModalOpen(false)}
+            />
+          )}
+        </Suspense>
+      )}
+
+      {/* Discrete Admin Keyhole Trigger at Bottom Right */}
+      <button
+        className="admin-portal-floating-trigger"
+        onClick={() => setIsAdminModalOpen(true)}
+        title="Cổng Quản Trị Doanh Thu & Tài Sản (Ctrl + Shift + A)"
+        aria-label="Cổng Quản Trị"
+      >
+        <Lock size={12} />
+      </button>
     </main>
   );
 }

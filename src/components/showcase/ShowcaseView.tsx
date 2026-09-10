@@ -5,6 +5,9 @@ import { useSolarStore } from '../../store/solarStore';
 import { useDeviceProfile } from '../../utils/deviceProfile';
 import { PlanetShowcaseStage } from './PlanetShowcaseStage';
 import { ClassificationSection } from './ClassificationSection';
+import { ShareButton } from '../ui/ShareButton';
+import { SupportButton } from '../monetization/SupportButton';
+import { AffiliateSection } from '../monetization/AffiliateSection';
 import type { PlanetData } from '../../types/planet';
 
 /* ─── Localised labels & Chromatic Identity ─── */
@@ -395,6 +398,12 @@ function PlanetSection({
             <span>Xem hồ sơ dữ liệu chi tiết</span>
             <ChevronRight size={14} />
           </button>
+
+          <ShareButton
+            planetName={planet.name}
+            planetEnglish={planet.englishName}
+            variant="compact"
+          />
         </div>
       </div>
     </section>
@@ -627,7 +636,14 @@ export function ShowcaseView() {
                 <ChevronRight size={14} style={{ transform: 'rotate(-90deg)' }} />
                 <span>Về đầu trang</span>
               </button>
+              <ShareButton variant="pill" />
             </div>
+
+            {/* Support / Donation Card */}
+            <SupportButton variant="full" />
+
+            {/* Affiliate Recommendations */}
+            <AffiliateSection variant="cards" />
           </div>
         </section>
       </div>

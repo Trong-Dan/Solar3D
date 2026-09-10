@@ -73,8 +73,10 @@ export function InfoPanel() {
     { id: 'comparison', label: 'So sánh', icon: <BarChart2 size={16} /> },
   ];
 
-  // Collapsed State: Sleek Floating Frame Trigger on the right edge
+  // Collapsed State: Sleek Floating Frame Trigger on the right edge (only in Free Explore)
   if (!isInfoPanelOpen) {
+    if (isShowcase) return null;
+
     return (
       <aside
         className="dossier-collapsed-trigger-wrapper animate-slide-in-right"

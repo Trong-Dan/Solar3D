@@ -1,3 +1,41 @@
+# Production & Dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Environment Variables & Secrets (CRITICAL FOR DATA SECURITY)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.pfx
+
+# Logs & Diagnostics
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS & Editor generated files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary & Build outputs
+build_output*.txt
+tsc_errors.txt
+
 # impeccable-live-ignore-start
 .impeccable/hook.cache.json
 .impeccable/hook.pending.json
