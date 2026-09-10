@@ -17,7 +17,7 @@ export const MONETIZATION_CONFIG = {
   courseUrl: '', // dán link affiliate Coursera thật
 
   /** Link Ko-fi hoặc Buy Me a Coffee */
-  supportUrl: '', // vd: https://ko-fi.com/<username>
+  supportUrl: 'https://ko-fi.com/trongdan', // vd: https://ko-fi.com/<username>
 
   /** Tỷ lệ hoa hồng mặc định (%) — chỉ dùng để ước tính demo */
   commissionRateTelescope: 5,
