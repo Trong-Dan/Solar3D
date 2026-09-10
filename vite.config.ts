@@ -7,6 +7,13 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    proxy: {
+      '/api/sepay': {
+        target: 'https://my.sepay.vn',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/sepay/, '/userapi/transactions/list'),
+      },
+    },
   },
   esbuild: {
     // Loại bỏ toàn bộ chú thích nội bộ để tránh lộ cấu trúc code

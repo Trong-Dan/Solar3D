@@ -272,19 +272,46 @@ class AnalyticsTracker {
 
     try {
       const accountNo = this.bankSettings.accountNo.trim();
-      const url = `https://my.sepay.vn/userapi/transactions/list?limit=50${accountNo ? `&account_number=${encodeURIComponent(accountNo)}` : ''}`;
+      const params = `limit=50${accountNo ? `&account_number=${encodeURIComponent(accountNo)}` : ''}`;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${key}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      // Gọi qua endpoint proxy /api/sepay để vượt qua chính sách CORS của trình duyệt
+      const proxyUrl = `/api/sepay?${params}`;
+
+      let response: Response;
+      try {
+        response = await fetch(proxyUrl, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch {
+        // Dự phòng gọi trực tiếp nếu proxy chưa phản hồi
+        const directUrl = `https://my.sepay.vn/userapi/transactions/list?${params}`;
+        response = await fetch(directUrl, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      }
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          return { success: false, count: 0, message: 'API Token SePay không hợp lệ hoặc đã hết hạn.' };
+          return {
+            success: false,
+            count: 0,
+            message: 'API Token SePay không hợp lệ. Vui lòng kiểm tra lại mã Token bạn đã copy trên SePay.vn.',
+          };
+        }
+        if (response.status === 404) {
+          return {
+            success: false,
+            count: 0,
+            message: 'Không tìm thấy tài khoản ngân hàng hoặc API SePay không tồn tại.',
+          };
         }
         return { success: false, count: 0, message: `Lỗi kết nối máy chủ SePay (Mã HTTP: ${response.status})` };
       }
