@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import {
   Volume2,
   VolumeX,
@@ -17,6 +17,7 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
+  Coffee,
 } from 'lucide-react';
 import { useSolarStore } from '../../store/solarStore';
 
@@ -43,6 +44,7 @@ export function Header() {
   const togglePanoramaMode = useSolarStore((s) => s.togglePanoramaMode);
   const isHeaderCollapsed = useSolarStore((s) => s.isHeaderCollapsed);
   const toggleHeaderCollapsed = useSolarStore((s) => s.toggleHeaderCollapsed);
+  const openDonationModal = useSolarStore((s) => s.openDonationModal);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -217,6 +219,16 @@ export function Header() {
                 ) : (
                   <VolumeX size={17} />
                 )}
+              </button>
+
+              {/* Support Creator Coffee Button */}
+              <button
+                className="island-action-btn btn-support-coffee"
+                onClick={openDonationModal}
+                title="Ủng hộ tác giả duy trì dự án Hệ Mặt Trời 3D ☕"
+                aria-label="Ủng hộ dự án"
+              >
+                <Coffee size={17} />
               </button>
 
               {/* Settings Modal Toggle */}

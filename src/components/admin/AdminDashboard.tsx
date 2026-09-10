@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   DollarSign,
   ShoppingCart,
   Heart,
   Share2,
   Download,
+  Upload,
   LogOut,
   X,
   Settings,
@@ -12,61 +13,151 @@ import {
   Telescope,
   BookOpen,
   GraduationCap,
-  Coffee,
   Save,
-  RotateCcw,
   Smartphone,
-  Monitor,
   Tablet,
+  Monitor,
   Key,
-  AlertTriangle,
   Info,
   Check,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  Clock,
+  QrCode,
+  Wallet,
+  Globe,
+  ExternalLink,
+  ShieldAlert,
+  ShieldCheck,
+  FileSpreadsheet,
+  FileJson,
 } from 'lucide-react';
-import { analyticsTracker, AdminSettings } from '../../services/analyticsTracker';
-import { MONETIZATION_CONFIG } from '../../config/monetization';
+import { analyticsTracker, RealDonation } from '../../services/analyticsTracker';
+import { MONETIZATION_CONFIG, BANKING_CONFIG } from '../../config/monetization';
+import {
+  PIN_SALT,
+  STORAGE_PIN_HASH,
+  sha256,
+  isDefaultPinInUse,
+} from '../../utils/security';
 
 interface AdminDashboardProps {
   onClose: () => void;
   onLogout: () => void;
 }
 
-type TabType = 'overview' | 'events' | 'settings';
+type TabType = 'overview' | 'ledger' | 'settings';
 
 export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [summary, setSummary] = useState(analyticsTracker.getSummary());
-  const [localSettings, setLocalSettings] = useState<AdminSettings>(analyticsTracker.getSettings());
-  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [bankSettings, setBankSettings] = useState(analyticsTracker.getBankSettings());
+  const [bankSaved, setBankSaved] = useState(false);
+  const [hasDefaultPin, setHasDefaultPin] = useState(false);
+
+  // Add Manual Donation Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [manualDonorName, setManualDonorName] = useState('');
+  const [manualAmount, setManualAmount] = useState('');
+  const [manualMethod, setManualMethod] = useState<'vietqr' | 'momo' | 'kofi' | 'manual'>('vietqr');
+  const [manualStatus, setManualStatus] = useState<'confirmed' | 'pending'>('confirmed');
+  const [manualIsPublic, setManualIsPublic] = useState(true);
+  const [manualMessage, setManualMessage] = useState('');
+  const [manualRef, setManualRef] = useState('');
+
+  // PIN change
   const [newPin, setNewPin] = useState('');
   const [pinChangeMessage, setPinChangeMessage] = useState<string | null>(null);
 
-  // Subscribe to real-time analytics updates
+  // Filter in Ledger
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'pending'>('all');
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check default PIN status and subscribe to updates
   useEffect(() => {
+    isDefaultPinInUse().then(setHasDefaultPin);
+
     const unsubscribe = analyticsTracker.subscribe(() => {
       setSummary(analyticsTracker.getSummary());
-      setLocalSettings(analyticsTracker.getSettings());
+      setBankSettings(analyticsTracker.getBankSettings());
     });
     return () => unsubscribe();
   }, []);
 
   const handleExportCSV = () => {
-    const csvData = analyticsTracker.exportCSV();
+    const csvData = analyticsTracker.exportDonationsCSV();
     const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `solar_system_3d_demo_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `sao_ke_ung_ho_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const handleSaveLocalSettings = (e: React.FormEvent) => {
+  const handleExportBackupJSON = () => {
+    const data = analyticsTracker.exportBackupJSON();
+    const blob = new Blob([data], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `backup_ss3d_quy_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportBackupJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const res = analyticsTracker.importBackupJSON(content);
+      if (res.success) {
+        alert(`✅ Đã khôi phục thành công ${res.count} giao dịch từ file sao lưu!`);
+      } else {
+        alert(`❌ Lỗi khôi phục: ${res.error}`);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleSaveBankSettings = (e: React.FormEvent) => {
     e.preventDefault();
-    analyticsTracker.updateSettings(localSettings);
-    setSettingsSaved(true);
-    setTimeout(() => setSettingsSaved(false), 2500);
+    analyticsTracker.updateBankSettings(bankSettings);
+    setBankSaved(true);
+    setTimeout(() => setBankSaved(false), 2500);
+  };
+
+  const handleAddManualDonation = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedAmount = parseInt(manualAmount.replace(/\D/g, ''), 10);
+    if (!parsedAmount || parsedAmount < 1000) {
+      alert('Vui lòng nhập số tiền hợp lệ (tối thiểu 1.000đ)!');
+      return;
+    }
+
+    analyticsTracker.addManualDonation({
+      donorName: manualDonorName.trim() || 'Nhà hảo tâm',
+      amount: parsedAmount,
+      method: manualMethod,
+      status: manualStatus,
+      isPublic: manualIsPublic,
+      message: manualMessage.trim(),
+      transactionRef: manualRef.trim() || undefined,
+    });
+
+    setManualDonorName('');
+    setManualAmount('');
+    setManualMessage('');
+    setManualRef('');
+    setIsAddModalOpen(false);
   };
 
   const handleChangePin = async (e: React.FormEvent) => {
@@ -76,16 +167,45 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
       return;
     }
 
-    const PIN_SALT = 'solar_system_3d_secret_salt_2026';
-    const buffer = new TextEncoder().encode(PIN_SALT + newPin.trim());
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const newHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-
-    localStorage.setItem('ss3d_admin_pin_hash_v1', newHash);
+    const newHash = await sha256(PIN_SALT + newPin.trim());
+    localStorage.setItem(STORAGE_PIN_HASH, newHash);
     setNewPin('');
-    setPinChangeMessage('✅ Đã đổi mã PIN thành công!');
-    setTimeout(() => setPinChangeMessage(null), 3000);
+    setHasDefaultPin(false);
+    setPinChangeMessage('✅ Đã đổi mã PIN thành công! Hãy ghi nhớ mã mới này.');
+    setTimeout(() => setPinChangeMessage(null), 4000);
+  };
+
+  const getMethodBadge = (method: RealDonation['method']) => {
+    switch (method) {
+      case 'vietqr':
+        return (
+          <span className="admin-method-badge vietqr">
+            <QrCode size={12} />
+            <span>VietQR</span>
+          </span>
+        );
+      case 'momo':
+        return (
+          <span className="admin-method-badge momo">
+            <Wallet size={12} />
+            <span>MoMo</span>
+          </span>
+        );
+      case 'kofi':
+        return (
+          <span className="admin-method-badge kofi">
+            <Globe size={12} />
+            <span>Ko-fi</span>
+          </span>
+        );
+      default:
+        return (
+          <span className="admin-method-badge manual">
+            <DollarSign size={12} />
+            <span>Thủ công</span>
+          </span>
+        );
+    }
   };
 
   const getItemIcon = (id: string) => {
@@ -94,30 +214,23 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
         return <Telescope size={16} className="text-amber-400" />;
       case 'book':
         return <BookOpen size={16} className="text-sky-400" />;
-      case 'course':
+      default:
         return <GraduationCap size={16} className="text-emerald-400" />;
-      default:
-        return <Coffee size={16} className="text-rose-400" />;
     }
   };
 
-  const getDeviceIcon = (device: string) => {
-    switch (device) {
-      case 'mobile':
-        return <Smartphone size={13} />;
-      case 'tablet':
-        return <Tablet size={13} />;
-      default:
-        return <Monitor size={13} />;
-    }
-  };
+  // Filtered donations for ledger tab
+  const filteredDonations = summary.donations.filter((d) => {
+    const matchesSearch =
+      d.donorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (d.transactionRef && d.transactionRef.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      d.message.toLowerCase().includes(searchQuery.toLowerCase());
 
-  const configEntries = [
-    { label: 'Kính thiên văn (Amazon)', value: MONETIZATION_CONFIG.telescopeUrl },
-    { label: 'Sách Cosmos (Amazon)', value: MONETIZATION_CONFIG.bookUrl },
-    { label: 'Khóa học Coursera', value: MONETIZATION_CONFIG.courseUrl },
-    { label: 'Ủng hộ (Ko-fi)', value: MONETIZATION_CONFIG.supportUrl },
-  ];
+    const matchesStatus =
+      statusFilter === 'all' ? true : d.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="admin-dashboard-backdrop animate-fade-in">
@@ -125,22 +238,30 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
         {/* Top Header Bar */}
         <div className="admin-dashboard-header">
           <div className="admin-header-title-block">
-            <div className="admin-header-badge">
-              <span className="admin-pulsar" />
-              <span>CHẾ ĐỘ XEM TRƯỚC (DEMO)</span>
+            <div className="admin-header-badge prod-badge">
+              <span className="admin-pulsar prod-pulsar" />
+              <span>HỆ THỐNG QUẢN TRỊ THỰC TẾ (PRODUCTION LIVE)</span>
             </div>
-            <h1 className="admin-dashboard-title">BẢNG ƯỚC TÍNH DEMO — KHÔNG PHẢI SỐ LIỆU THẬT</h1>
+            <h1 className="admin-dashboard-title">BẢNG ĐIỀU HÀNH DOANH THU & QUYÊN GÓP THỰC TẾ</h1>
             <p className="admin-dashboard-desc">
-              Ước tính lượt click demo trên máy hiện tại. Dữ liệu lưu trong localStorage, không phải số liệu thật từ khách truy cập.
+              Khu vực bảo mật riêng tư dành cho Quản trị viên theo dõi nguồn thu thực tế.
             </p>
           </div>
 
           <div className="admin-header-actions">
-            <button className="admin-btn-export" onClick={handleExportCSV} title="Xuất dữ liệu demo ra file CSV">
-              <Download size={15} />
-              <span>Xuất CSV</span>
+            <button
+              className="admin-btn-add-donation"
+              onClick={() => setIsAddModalOpen(true)}
+              title="Ghi nhận khoản ủng hộ mới nhận được từ tài khoản ngân hàng"
+            >
+              <Plus size={15} />
+              <span>Ghi nhận ủng hộ</span>
             </button>
-            <button className="admin-btn-logout" onClick={onLogout} title="Đăng xuất">
+            <button className="admin-btn-export" onClick={handleExportCSV} title="Xuất toàn bộ sao kê ra file CSV Excel">
+              <FileSpreadsheet size={15} />
+              <span>Xuất sao kê CSV</span>
+            </button>
+            <button className="admin-btn-logout" onClick={onLogout} title="Khóa bảng điều hành">
               <LogOut size={15} />
               <span>Khóa ngay</span>
             </button>
@@ -157,21 +278,22 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
             onClick={() => setActiveTab('overview')}
           >
             <DollarSign size={16} />
-            <span>Tổng quan Demo</span>
+            <span>Tổng quan Quỹ & Doanh thu</span>
           </button>
           <button
-            className={`admin-tab-btn ${activeTab === 'events' ? 'active' : ''}`}
-            onClick={() => setActiveTab('events')}
+            className={`admin-tab-btn ${activeTab === 'ledger' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ledger')}
           >
             <Activity size={16} />
-            <span>Nhật ký Chuyển đổi ({summary.totalEvents})</span>
+            <span>Sao kê Quyên góp ({summary.totalDonationsCount})</span>
           </button>
           <button
             className={`admin-tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}
           >
             <Settings size={16} />
-            <span>Cấu hình & Mã PIN</span>
+            <span>Cấu hình & Bảo mật</span>
+            {hasDefaultPin && <span className="donation-tab-pill" style={{ background: '#ef4444', color: '#fff' }}>Đổi PIN</span>}
           </button>
         </div>
 
@@ -179,23 +301,25 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
         <div className="admin-content-area">
           {activeTab === 'overview' && (
             <div className="admin-tab-overview animate-fade-in">
-              {/* Seed Data Warning Banner */}
-              {summary.hasSeedData && (
-                <div className="admin-seed-warning-banner" style={{
+              {/* Default PIN Security Warning Banner */}
+              {hasDefaultPin && (
+                <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
-                  padding: '12px 16px',
+                  gap: '12px',
+                  padding: '12px 18px',
                   marginBottom: '16px',
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  borderRadius: '10px',
-                  color: '#fbbf24',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  borderRadius: '12px',
+                  color: '#fca5a5',
                   fontSize: '0.85rem',
-                  lineHeight: '1.4',
+                  lineHeight: '1.45',
                 }}>
-                  <AlertTriangle size={18} style={{ flexShrink: 0 }} />
-                  <span>⚠️ <strong>Dữ liệu mẫu</strong> — Các con số bên dưới là dữ liệu seed minh họa, không phải doanh thu thật. Xóa bằng nút "Làm mới nhật ký" trong tab Nhật ký.</span>
+                  <ShieldAlert size={22} style={{ flexShrink: 0, color: '#f87171' }} />
+                  <div>
+                    <strong style={{ color: '#ffffff' }}>KHUYẾN NGHỊ BẢO MẬT KHẨN CẤP:</strong> Bạn đang sử dụng mã PIN mặc định. Vui lòng mở tab <strong>"Cấu hình & Bảo mật"</strong> và đổi sang mã PIN bí mật của riêng bạn để ngăn chặn người ngoài truy cập!
+                  </div>
                 </div>
               )}
 
@@ -203,35 +327,42 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
               <div className="admin-kpi-grid">
                 <div className="admin-kpi-card highlight-gold">
                   <div className="admin-kpi-header">
-                    <span className="admin-kpi-title">ƯỚC TÍNH DEMO</span>
+                    <span className="admin-kpi-title">TỔNG TIỀN ỦNG HỘ THỰC TẾ</span>
                     <div className="admin-kpi-icon-wrap gold">
                       <DollarSign size={18} />
                     </div>
                   </div>
-                  <div className="admin-kpi-value">{summary.totalRevenueVnd.toLocaleString('vi-VN')}₫</div>
-                  <div className="admin-kpi-sub">≈ ${(summary.totalRevenueVnd / 25400).toFixed(2)} USD (chỉ tính trên máy này)</div>
+                  <div className="admin-kpi-value">{summary.totalConfirmedRevenueVnd.toLocaleString('vi-VN')}₫</div>
+                  <div className="admin-kpi-sub">
+                    ≈ ${(summary.totalConfirmedRevenueVnd / 25400).toFixed(2)} USD • {summary.confirmedCount} giao dịch đã nhận tiền
+                  </div>
+                  {summary.totalPendingRevenueVnd > 0 && (
+                    <div className="admin-kpi-extra-pending">
+                      ⏳ Chờ đối soát: +{summary.totalPendingRevenueVnd.toLocaleString('vi-VN')}₫ ({summary.pendingCount} lượt)
+                    </div>
+                  )}
                 </div>
 
                 <div className="admin-kpi-card">
                   <div className="admin-kpi-header">
-                    <span className="admin-kpi-title">LƯỢT CLICK MUA HÀNG</span>
+                    <span className="admin-kpi-title">LƯỢT CLICK SẢN PHẨM AFFILIATE</span>
                     <div className="admin-kpi-icon-wrap cyan">
                       <ShoppingCart size={18} />
                     </div>
                   </div>
                   <div className="admin-kpi-value">{summary.affiliateClicks}</div>
-                  <div className="admin-kpi-sub">Sản phẩm Affiliate (demo cục bộ)</div>
+                  <div className="admin-kpi-sub">Lượt khách nhấp xem Kính, Sách, Khóa học</div>
                 </div>
 
                 <div className="admin-kpi-card">
                   <div className="admin-kpi-header">
-                    <span className="admin-kpi-title">LƯỢT BẤM ỦNG HỘ</span>
+                    <span className="admin-kpi-title">LƯỢT MỞ CỔNG ỦNG HỘ</span>
                     <div className="admin-kpi-icon-wrap rose">
                       <Heart size={18} />
                     </div>
                   </div>
-                  <div className="admin-kpi-value">{summary.donationClicks}</div>
-                  <div className="admin-kpi-sub">Ko-fi / Coffee (demo cục bộ)</div>
+                  <div className="admin-kpi-value">{summary.donationGateOpens}</div>
+                  <div className="admin-kpi-sub">Khách xem mã VietQR / MoMo / Ko-fi</div>
                 </div>
 
                 <div className="admin-kpi-card">
@@ -242,16 +373,119 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                     </div>
                   </div>
                   <div className="admin-kpi-value">{summary.shareClicks}</div>
-                  <div className="admin-kpi-sub">Facebook, Twitter / X, Sao chép link</div>
+                  <div className="admin-kpi-sub">Facebook, Twitter / X, Sao chép liên kết</div>
                 </div>
               </div>
 
-              {/* Asset & Product Performance Table */}
+              {/* Recent Real Donations List */}
               <div className="admin-panel-card">
                 <div className="admin-card-header">
                   <div>
-                    <h3 className="admin-card-title">HIỆU QUẢ DANH MỤC SẢN PHẨM (DEMO)</h3>
-                    <p className="admin-card-subtitle">Ước tính lượt click trên máy hiện tại — không phải dữ liệu từ khách truy cập thật</p>
+                    <h3 className="admin-card-title">CÁC KHOẢN ỦNG HỘ GẦN ĐÂY</h3>
+                    <p className="admin-card-subtitle">
+                      Danh sách giao dịch quyên góp thực tế nhận từ VietQR, MoMo và Ko-fi
+                    </p>
+                  </div>
+                  <div className="admin-card-header-actions">
+                    <button
+                      className="admin-btn-mini-add"
+                      onClick={() => setIsAddModalOpen(true)}
+                    >
+                      <Plus size={13} />
+                      <span>Thêm giao dịch</span>
+                    </button>
+                    <button
+                      className="admin-btn-mini-view-all"
+                      onClick={() => setActiveTab('ledger')}
+                    >
+                      <span>Xem toàn bộ</span>
+                    </button>
+                  </div>
+                </div>
+
+                {summary.donations.length === 0 ? (
+                  <div className="admin-empty-state">
+                    <Heart size={32} style={{ opacity: 0.3, marginBottom: '8px' }} />
+                    <p>Chưa có khoản ủng hộ nào. Khi bạn nhận được tiền chuyển khoản trên app ngân hàng, hãy bấm nút <strong>"Ghi nhận ủng hộ"</strong> để lưu vào hệ thống!</p>
+                  </div>
+                ) : (
+                  <div className="admin-table-wrap">
+                    <table className="admin-data-table">
+                      <thead>
+                        <tr>
+                          <th>Thời gian</th>
+                          <th>Người ủng hộ</th>
+                          <th>Số tiền</th>
+                          <th>Kênh</th>
+                          <th>Lời nhắn</th>
+                          <th>Trạng thái</th>
+                          <th>Hành động</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {summary.donations.slice(0, 5).map((donation) => (
+                          <tr key={donation.id}>
+                            <td className="font-mono text-xs">{donation.formattedDate}</td>
+                            <td>
+                              <strong>{donation.donorName}</strong>
+                            </td>
+                            <td>
+                              <span className="font-gold font-bold">
+                                +{donation.amount.toLocaleString('vi-VN')}₫
+                              </span>
+                            </td>
+                            <td>{getMethodBadge(donation.method)}</td>
+                            <td>
+                              <span className="admin-table-msg">
+                                {donation.message ? `"${donation.message}"` : '—'}
+                              </span>
+                            </td>
+                            <td>
+                              <button
+                                className={`admin-status-pill ${donation.status}`}
+                                onClick={() => analyticsTracker.toggleDonationStatus(donation.id)}
+                                title="Nhấp để đổi trạng thái Xác nhận / Chờ đối soát"
+                              >
+                                {donation.status === 'confirmed' ? (
+                                  <>
+                                    <CheckCircle2 size={12} />
+                                    <span>Đã nhận tiền</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock size={12} />
+                                    <span>Chờ đối soát</span>
+                                  </>
+                                )}
+                              </button>
+                            </td>
+                            <td>
+                              <button
+                                className="admin-row-del-btn"
+                                onClick={() => {
+                                  if (confirm(`Bạn có chắc muốn xóa giao dịch của "${donation.donorName}"?`)) {
+                                    analyticsTracker.deleteDonation(donation.id);
+                                  }
+                                }}
+                                title="Xóa giao dịch"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Product Performance Table */}
+              <div className="admin-panel-card" style={{ marginTop: '20px' }}>
+                <div className="admin-card-header">
+                  <div>
+                    <h3 className="admin-card-title">HIỆU QUẢ TIẾP THỊ LIÊN KẾT (AFFILIATE)</h3>
+                    <p className="admin-card-subtitle">Thống kê lưu lượng nhấp chuột thực tế vào các sản phẩm thiên văn</p>
                   </div>
                 </div>
 
@@ -262,8 +496,8 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                         <th>Sản phẩm / Nguồn</th>
                         <th>Phân loại</th>
                         <th>Lượt nhấp (Clicks)</th>
-                        <th>Ước tính demo</th>
                         <th>Trạng thái liên kết</th>
+                        <th>Liên kết</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -282,14 +516,24 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                             <strong className="admin-table-clicks">{item.clicks}</strong>
                           </td>
                           <td>
-                            <span className="admin-table-revenue">
-                              {item.estimatedRevenueVnd.toLocaleString('vi-VN')}₫
+                            <span className="admin-status-online">
+                              <span className="status-dot prod-dot" /> Đang theo dõi
                             </span>
                           </td>
                           <td>
-                            <span className="admin-status-online">
-                              <span className="status-dot" /> Demo
-                            </span>
+                            {item.url ? (
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="admin-link-anchor"
+                              >
+                                <span>Mở link</span>
+                                <ExternalLink size={11} />
+                              </a>
+                            ) : (
+                              <span style={{ opacity: 0.4, fontSize: '0.8rem' }}>Chưa cấu hình URL</span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -300,56 +544,114 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
             </div>
           )}
 
-          {activeTab === 'events' && (
-            <div className="admin-tab-events animate-fade-in">
+          {activeTab === 'ledger' && (
+            <div className="admin-tab-ledger animate-fade-in">
               <div className="admin-panel-card">
                 <div className="admin-card-header">
                   <div>
-                    <h3 className="admin-card-title">NHẬT KÝ TƯƠNG TÁC (DEMO CỤC BỘ)</h3>
-                    <p className="admin-card-subtitle">Sự kiện ghi nhận trên máy hiện tại — không phải dữ liệu khách truy cập thật</p>
+                    <h3 className="admin-card-title">SỔ CÁI & SAO KÊ QUYÊN GÓP CHI TIẾT</h3>
+                    <p className="admin-card-subtitle">Toàn bộ các khoản tiền ủng hộ được ghi nhận trong hệ thống</p>
                   </div>
-                  <button
-                    className="admin-btn-clear"
-                    onClick={() => {
-                      if (confirm('Bạn có chắc muốn xóa sạch dữ liệu nhật ký demo?')) {
-                        analyticsTracker.clearAllData();
-                      }
-                    }}
-                  >
-                    <RotateCcw size={14} />
-                    <span>Làm mới nhật ký</span>
-                  </button>
+                  <div className="admin-ledger-filter-row">
+                    <input
+                      type="text"
+                      placeholder="Tìm theo tên người gửi, mã GD..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="admin-ledger-search"
+                    />
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as any)}
+                      className="admin-ledger-select"
+                    >
+                      <option value="all">Tất cả trạng thái</option>
+                      <option value="confirmed">Đã nhận tiền</option>
+                      <option value="pending">Chờ đối soát</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div className="admin-events-list">
-                  {summary.recentEvents.length === 0 ? (
-                    <div className="admin-empty-state">Chưa có sự kiện nào được ghi nhận.</div>
-                  ) : (
-                    summary.recentEvents.map((evt) => (
-                      <div key={evt.id} className="admin-event-row">
-                        <div className="admin-event-device" title={`Thiết bị: ${evt.device}`}>
-                          {getDeviceIcon(evt.device)}
-                        </div>
-                        <div className="admin-event-info">
-                          <span className="admin-event-name">{evt.itemName}</span>
-                          <span className="admin-event-time">{evt.formattedTime}</span>
-                        </div>
-                        <div className="admin-event-tag">
-                          {evt.type === 'affiliate_click'
-                            ? 'MUA HÀNG'
-                            : evt.type === 'donation_click'
-                            ? 'ỦNG HỘ'
-                            : 'CHIA SẺ'}
-                        </div>
-                        {evt.estimatedRevenueVnd > 0 && (
-                          <div className="admin-event-revenue">
-                            +{evt.estimatedRevenueVnd.toLocaleString('vi-VN')}₫
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
+                {filteredDonations.length === 0 ? (
+                  <div className="admin-empty-state">Không tìm thấy giao dịch nào khớp với bộ lọc.</div>
+                ) : (
+                  <div className="admin-table-wrap">
+                    <table className="admin-data-table">
+                      <thead>
+                        <tr>
+                          <th>Mã GD</th>
+                          <th>Thời gian</th>
+                          <th>Người ủng hộ</th>
+                          <th>Số tiền (VND)</th>
+                          <th>Quy đổi USD</th>
+                          <th>Kênh</th>
+                          <th>Mã tham chiếu</th>
+                          <th>Lời nhắn</th>
+                          <th>Trạng thái</th>
+                          <th>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredDonations.map((d) => (
+                          <tr key={d.id}>
+                            <td className="font-mono text-xs text-muted">{d.id}</td>
+                            <td className="font-mono text-xs">{d.formattedDate}</td>
+                            <td>
+                              <strong>{d.donorName}</strong>
+                            </td>
+                            <td>
+                              <span className="font-gold font-bold">
+                                +{d.amount.toLocaleString('vi-VN')}₫
+                              </span>
+                            </td>
+                            <td className="font-mono text-xs text-muted">
+                              ≈ ${(d.amount / 25400).toFixed(2)}
+                            </td>
+                            <td>{getMethodBadge(d.method)}</td>
+                            <td className="font-mono text-xs">{d.transactionRef || '—'}</td>
+                            <td>
+                              <span className="admin-table-msg" title={d.message}>
+                                {d.message ? `"${d.message}"` : '—'}
+                              </span>
+                            </td>
+                            <td>
+                              <button
+                                className={`admin-status-pill ${d.status}`}
+                                onClick={() => analyticsTracker.toggleDonationStatus(d.id)}
+                                title="Nhấp để đổi trạng thái"
+                              >
+                                {d.status === 'confirmed' ? (
+                                  <>
+                                    <CheckCircle2 size={12} />
+                                    <span>Đã nhận tiền</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock size={12} />
+                                    <span>Chờ đối soát</span>
+                                  </>
+                                )}
+                              </button>
+                            </td>
+                            <td>
+                              <button
+                                className="admin-row-del-btn"
+                                onClick={() => {
+                                  if (confirm(`Bạn có chắc muốn xóa giao dịch của "${d.donorName}"?`)) {
+                                    analyticsTracker.deleteDonation(d.id);
+                                  }
+                                }}
+                                title="Xóa giao dịch"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -357,145 +659,175 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
           {activeTab === 'settings' && (
             <div className="admin-tab-settings animate-fade-in">
               <div className="admin-settings-columns">
-                {/* Read-only Config Display */}
+                {/* Bank Account Config Form */}
                 <div className="admin-panel-card">
                   <div className="admin-card-header">
                     <div>
-                      <h3 className="admin-card-title">ĐƯỜNG DẪN TIẾP THỊ LIÊN KẾT (READ-ONLY)</h3>
+                      <h3 className="admin-card-title">CẤU HÌNH TÀI KHOẢN NGÂN HÀNG (VIETQR)</h3>
                       <p className="admin-card-subtitle">
-                        Giá trị được đọc từ source code. Muốn đổi link, sửa <code>src/config/monetization.ts</code> rồi deploy lại.
+                        Thông tin tài khoản nhận tiền thật hiển thị cho người dùng trên mã VietQR
                       </p>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '4px 0' }}>
-                    {configEntries.map((entry) => (
-                      <div key={entry.label} className="admin-form-group">
-                        <label style={{ fontSize: '0.8rem', opacity: 0.7 }}>{entry.label}</label>
-                        <div style={{
-                          padding: '10px 14px',
-                          background: 'rgba(255,255,255,0.04)',
-                          border: '1px solid rgba(255,255,255,0.08)',
-                          borderRadius: '8px',
-                          fontSize: '0.85rem',
-                          color: entry.value ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)',
-                          fontFamily: 'monospace',
-                          wordBreak: 'break-all',
-                        }}>
-                          {entry.value || '(chưa cấu hình — dán link thật vào src/config/monetization.ts)'}
-                        </div>
-                      </div>
-                    ))}
-
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '8px',
-                      padding: '10px 14px',
-                      background: 'rgba(59, 130, 246, 0.08)',
-                      border: '1px solid rgba(59, 130, 246, 0.2)',
-                      borderRadius: '8px',
-                      fontSize: '0.8rem',
-                      color: 'rgba(147, 197, 253, 0.9)',
-                      lineHeight: '1.5',
-                    }}>
-                      <Info size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-                      <span>
-                        Đây là SPA tĩnh — link chỉ thay đổi khi sửa file config trong code rồi deploy lại qua Vercel.
-                        Admin Dashboard không có quyền sửa link hiển thị cho khách.
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Local demo estimation settings */}
-                  <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                    <h4 style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Tỷ lệ ước tính demo (chỉ ảnh hưởng tính toán cục bộ)
-                    </h4>
-                    <form onSubmit={handleSaveLocalSettings} className="admin-settings-form">
-                      <div className="admin-form-group">
-                        <label>Hoa hồng Kính thiên văn (%)</label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={localSettings.commissionRateTelescope}
-                          onChange={(e) => setLocalSettings({ ...localSettings, commissionRateTelescope: Number(e.target.value) })}
-                          className="admin-form-input"
-                        />
-                      </div>
-                      <div className="admin-form-group">
-                        <label>Hoa hồng Sách (%)</label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={localSettings.commissionRateBook}
-                          onChange={(e) => setLocalSettings({ ...localSettings, commissionRateBook: Number(e.target.value) })}
-                          className="admin-form-input"
-                        />
-                      </div>
-                      <div className="admin-form-group">
-                        <label>Mức donate trung bình (VND)</label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={localSettings.avgDonationVnd}
-                          onChange={(e) => setLocalSettings({ ...localSettings, avgDonationVnd: Number(e.target.value) })}
-                          className="admin-form-input"
-                        />
-                      </div>
-                      <button type="submit" className="admin-btn-save">
-                        {settingsSaved ? <Check size={16} /> : <Save size={16} />}
-                        <span>{settingsSaved ? 'Đã lưu!' : 'Lưu tỷ lệ ước tính'}</span>
-                      </button>
-                    </form>
-                  </div>
-                </div>
-
-                {/* Security Settings & Change PIN */}
-                <div className="admin-panel-card">
-                  <div className="admin-card-header">
-                    <div>
-                      <h3 className="admin-card-title">ĐỔI MÃ PIN</h3>
-                      <p className="admin-card-subtitle">
-                        Mã PIN chỉ là UI gate chống bấm nhầm, không bảo vệ dữ liệu nhạy cảm
-                      </p>
-                    </div>
-                  </div>
-
-                  <form onSubmit={handleChangePin} className="admin-settings-form">
+                  <form onSubmit={handleSaveBankSettings} className="admin-settings-form">
                     <div className="admin-form-group">
-                      <label>Mã PIN mới (Ít nhất 4 ký tự)</label>
+                      <label>Mã ngân hàng VietQR (MB, VCB, TCB, VPB, ACB, TPB, BIDV, CTG...)</label>
                       <input
-                        type="password"
-                        value={newPin}
-                        onChange={(e) => setNewPin(e.target.value)}
-                        placeholder="Nhập mã PIN mới (ví dụ: 999888)"
-                        className="admin-form-input"
-                        maxLength={12}
+                        type="text"
+                        value={bankSettings.bankId}
+                        onChange={(e) => setBankSettings({ ...bankSettings, bankId: e.target.value.toUpperCase() })}
+                        className="admin-form-input font-mono uppercase"
+                        required
                       />
                     </div>
 
-                    {pinChangeMessage && (
-                      <div className="admin-auth-info-banner">{pinChangeMessage}</div>
-                    )}
+                    <div className="admin-form-group">
+                      <label>Tên hiển thị ngân hàng</label>
+                      <input
+                        type="text"
+                        value={bankSettings.bankName}
+                        onChange={(e) => setBankSettings({ ...bankSettings, bankName: e.target.value })}
+                        className="admin-form-input"
+                        required
+                      />
+                    </div>
 
-                    <button type="submit" className="admin-btn-pin" disabled={!newPin.trim()}>
-                      <Key size={16} />
-                      <span>Cập Nhật Mã PIN</span>
+                    <div className="admin-form-group">
+                      <label>Số tài khoản thụ hưởng nhận tiền</label>
+                      <input
+                        type="text"
+                        value={bankSettings.accountNo}
+                        onChange={(e) => setBankSettings({ ...bankSettings, accountNo: e.target.value })}
+                        className="admin-form-input font-mono"
+                        required
+                      />
+                    </div>
+
+                    <div className="admin-form-group">
+                      <label>Tên chủ tài khoản (In hoa không dấu)</label>
+                      <input
+                        type="text"
+                        value={bankSettings.accountName}
+                        onChange={(e) => setBankSettings({ ...bankSettings, accountName: e.target.value.toUpperCase() })}
+                        className="admin-form-input font-mono uppercase"
+                        required
+                      />
+                    </div>
+
+                    <div className="admin-form-group">
+                      <label>Số điện thoại nhận tiền Ví MoMo</label>
+                      <input
+                        type="text"
+                        value={bankSettings.momoPhone}
+                        onChange={(e) => setBankSettings({ ...bankSettings, momoPhone: e.target.value })}
+                        className="admin-form-input font-mono"
+                      />
+                    </div>
+
+                    <div className="admin-form-group">
+                      <label>Cú pháp tiền tố chuyển khoản</label>
+                      <input
+                        type="text"
+                        value={bankSettings.transferPrefix}
+                        onChange={(e) => setBankSettings({ ...bankSettings, transferPrefix: e.target.value })}
+                        className="admin-form-input font-mono"
+                      />
+                    </div>
+
+                    <button type="submit" className="admin-btn-save">
+                      {bankSaved ? <Check size={16} /> : <Save size={16} />}
+                      <span>{bankSaved ? 'Đã lưu cấu hình!' : 'Lưu thông tin ngân hàng'}</span>
                     </button>
                   </form>
+                </div>
 
+                {/* Security Settings & Change PIN & Backup */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Change PIN Card */}
+                  <div className="admin-panel-card">
+                    <div className="admin-card-header">
+                      <div>
+                        <h3 className="admin-card-title">BẢO MẬT & ĐỔI MÃ PIN QUẢN TRỊ</h3>
+                        <p className="admin-card-subtitle">
+                          Mã PIN chỉ riêng bạn biết để đăng nhập và bảo vệ dữ liệu doanh thu
+                        </p>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleChangePin} className="admin-settings-form">
+                      <div className="admin-form-group">
+                        <label>Mã PIN mới (Ít nhất 4 ký tự)</label>
+                        <input
+                          type="password"
+                          value={newPin}
+                          onChange={(e) => setNewPin(e.target.value)}
+                          placeholder="Nhập mã PIN riêng tư mới"
+                          className="admin-form-input"
+                          maxLength={16}
+                        />
+                      </div>
+
+                      {pinChangeMessage && (
+                        <div className="admin-auth-info-banner">{pinChangeMessage}</div>
+                      )}
+
+                      <button type="submit" className="admin-btn-pin" disabled={!newPin.trim()}>
+                        <Key size={16} />
+                        <span>Cập Nhật Mã PIN Bí Mật</span>
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Backup & Restore Data Card */}
+                  <div className="admin-panel-card">
+                    <div className="admin-card-header">
+                      <div>
+                        <h3 className="admin-card-title">SAO LƯU & KHÔI PHỤC DỮ LIỆU</h3>
+                        <p className="admin-card-subtitle">
+                          Tải dữ liệu quỹ về máy tính để tránh mất khi xóa cache trình duyệt
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                      <button
+                        className="donation-btn-secondary"
+                        onClick={handleExportBackupJSON}
+                        title="Tải toàn bộ dữ liệu quỹ ra file JSON"
+                      >
+                        <FileJson size={16} />
+                        <span>Tải file sao lưu (.JSON)</span>
+                      </button>
+
+                      <button
+                        className="donation-btn-secondary"
+                        onClick={() => fileInputRef.current?.click()}
+                        title="Nhập dữ liệu từ file sao lưu JSON"
+                      >
+                        <Upload size={16} />
+                        <span>Khôi phục từ JSON</span>
+                      </button>
+
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImportBackupJSON}
+                        accept=".json"
+                        style={{ display: 'none' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Security Checklist */}
                   <div className="admin-security-checklist-box">
-                    <h4>TRẠNG THÁI HỆ THỐNG:</h4>
+                    <h4>CƠ CHẾ AN NINH BẢO VỆ:</h4>
                     <ul>
-                      <li>✅ File <code>.gitignore</code> đã chặn toàn bộ <code>.env</code> và <code>dist/</code></li>
-                      <li>✅ Tắt hoàn toàn <code>sourcemap: false</code> trong file build Production</li>
-                      <li>✅ Header <code>X-Frame-Options: DENY</code> chống nhúng lén iframe (Clickjacking)</li>
-                      <li>ℹ️ Mã PIN UI gate chống bấm nhầm (không phải bảo mật thật)</li>
-                      <li>✅ Phiên đăng nhập lưu trong SessionStorage (tự hủy khi tắt tab)</li>
-                      <li>✅ Link affiliate đọc từ source code, không lưu trong localStorage</li>
+                      <li>✅ Mã hóa chữ ký HMAC-SHA256 phiên làm việc — chống hack qua DevTools</li>
+                      <li>✅ Tự động khóa 15 phút nếu nhập sai mã PIN quá 5 lần</li>
+                      <li>✅ Nút mở quản trị được ẩn khỏi giao diện công khai của người dùng</li>
+                      <li>✅ Dữ liệu tài khoản nhận tiền chuyển thẳng vào ngân hàng của bạn</li>
+                      <li>ℹ️ Link affiliate đọc từ file mã nguồn <code>src/config/monetization.ts</code></li>
                     </ul>
                   </div>
                 </div>
@@ -504,6 +836,123 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
           )}
         </div>
       </div>
+
+      {/* Manual Add Donation Modal */}
+      {isAddModalOpen && (
+        <div className="admin-submodal-overlay animate-fade-in" onClick={() => setIsAddModalOpen(false)}>
+          <div className="admin-submodal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-submodal-header">
+              <h3>Ghi nhận khoản ủng hộ mới</h3>
+              <button onClick={() => setIsAddModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleAddManualDonation} className="admin-submodal-form">
+              <div className="admin-form-group">
+                <label>Tên người ủng hộ *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: Trần Văn B, hoặc Nhà hảo tâm"
+                  value={manualDonorName}
+                  onChange={(e) => setManualDonorName(e.target.value)}
+                  className="admin-form-input"
+                />
+              </div>
+
+              <div className="admin-form-group">
+                <label>Số tiền (VND) *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: 100.000"
+                  value={manualAmount}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setManualAmount(val ? parseInt(val, 10).toLocaleString('vi-VN') : '');
+                  }}
+                  className="admin-form-input font-mono font-gold"
+                />
+              </div>
+
+              <div className="admin-form-row">
+                <div className="admin-form-group">
+                  <label>Kênh thanh toán</label>
+                  <select
+                    value={manualMethod}
+                    onChange={(e) => setManualMethod(e.target.value as any)}
+                    className="admin-form-input"
+                  >
+                    <option value="vietqr">VietQR / Ngân hàng</option>
+                    <option value="momo">Ví MoMo</option>
+                    <option value="kofi">Ko-fi / Thẻ quốc tế</option>
+                    <option value="manual">Khác / Tiền mặt</option>
+                  </select>
+                </div>
+
+                <div className="admin-form-group">
+                  <label>Trạng thái</label>
+                  <select
+                    value={manualStatus}
+                    onChange={(e) => setManualStatus(e.target.value as any)}
+                    className="admin-form-input"
+                  >
+                    <option value="confirmed">Đã nhận tiền (Xác nhận)</option>
+                    <option value="pending">Chờ đối soát</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="admin-form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={manualIsPublic}
+                    onChange={(e) => setManualIsPublic(e.target.checked)}
+                  />
+                  <span>Vinh danh trên Bảng Vàng công khai của trang web</span>
+                </label>
+              </div>
+
+              <div className="admin-form-group">
+                <label>Mã giao dịch / Ghi chú (tùy chọn)</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: FT2409... hoặc MB-9821"
+                  value={manualRef}
+                  onChange={(e) => setManualRef(e.target.value)}
+                  className="admin-form-input font-mono"
+                />
+              </div>
+
+              <div className="admin-form-group">
+                <label>Lời nhắn gửi gắm (tùy chọn)</label>
+                <textarea
+                  placeholder="Ví dụ: Ủng hộ tác giả cốc cà phê phát triển web..."
+                  value={manualMessage}
+                  onChange={(e) => setManualMessage(e.target.value)}
+                  rows={2}
+                  className="admin-form-input"
+                />
+              </div>
+
+              <div className="admin-submodal-actions">
+                <button
+                  type="button"
+                  className="donation-btn-secondary"
+                  onClick={() => setIsAddModalOpen(false)}
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="donation-btn-primary">
+                  <Plus size={16} />
+                  <span>Lưu vào Quỹ Thực Tế</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

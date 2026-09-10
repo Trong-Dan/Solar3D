@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { Compass, Volume2, VolumeX, ChevronRight, Sparkles, Radio, Rocket, Orbit, Layers, Globe } from 'lucide-react';
+import { Compass, Volume2, VolumeX, ChevronRight, Sparkles, Radio, Rocket, Orbit, Layers, Globe, Coffee } from 'lucide-react';
 import { allCelestialBodies } from '../../data/planets';
 import { useSolarStore } from '../../store/solarStore';
 import { useDeviceProfile } from '../../utils/deviceProfile';
@@ -398,6 +398,8 @@ function PlanetSection({
             <ChevronRight size={14} />
           </button>
 
+          <SupportButton variant="inline" />
+
           <ShareButton
             planetName={planet.name}
             planetEnglish={planet.englishName}
@@ -417,6 +419,7 @@ export function ShowcaseView() {
   const soundEnabled = useSolarStore((s) => s.soundEnabled);
   const toggleSound = useSolarStore((s) => s.toggleSound);
   const enterFreeExplore = useSolarStore((s) => s.enterFreeExplore);
+  const openDonationModal = useSolarStore((s) => s.openDonationModal);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentBody = allCelestialBodies[Math.max(0, Math.min(showcaseIndex - 1, allCelestialBodies.length - 1))];
@@ -514,6 +517,15 @@ export function ShowcaseView() {
               </button>
 
               <button
+                className="showcase-support-pill-btn"
+                onClick={openDonationModal}
+                title="Ủng hộ tác giả duy trì dự án Hệ Mặt Trời 3D ☕"
+              >
+                <Coffee size={14} className="text-amber-400" />
+                <span>Ủng hộ ☕</span>
+              </button>
+
+              <button
                 className={`showcase-sound-btn ${soundEnabled ? 'is-active' : ''}`}
                 onClick={toggleSound}
                 title={soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
@@ -571,6 +583,8 @@ export function ShowcaseView() {
                 <Compass size={15} />
                 <span>Vào chế độ 3D tự do ngay</span>
               </button>
+
+              <SupportButton variant="inline" />
             </div>
 
             <div className="bloom delay-4 ares-hero-stats">

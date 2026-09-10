@@ -24,6 +24,7 @@ import { allCelestialBodies } from '../../data/planets';
 import { useSolarStore } from '../../store/solarStore';
 import { scrollShowcaseToIndex } from '../../utils/showcaseScroll';
 import { InfoTabType } from '../../types/planet';
+import { SupportButton } from '../monetization/SupportButton';
 
 export function InfoPanel() {
   const selectedPlanetId = useSolarStore((s) => s.selectedPlanetId);
@@ -553,6 +554,11 @@ export function InfoPanel() {
                 </div>
               </div>
             )}
+
+            {/* Support Creator Callout */}
+            <div className="info-panel-support-callout">
+              <SupportButton variant="compact" />
+            </div>
           </div>
         </div>
       </div>

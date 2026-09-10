@@ -14,28 +14,26 @@ Dự án đã được nâng cấp từ một trang mô phỏng 3D đơn thuần
    - Tích hợp Web Share API native trên Mobile (iOS/Android).
    - Tự động nhận diện Desktop để mở Glassmorphic Dropdown Menu: Facebook, Twitter / X, Sao chép link (kèm trạng thái "Đã sao chép!" 2s).
    - Sử dụng icon SVG nội bộ (zero-dependency, không phụ thuộc `lucide-react` cho brand icons).
-2. **Ủng hộ Dự án (`SupportButton.tsx`):**
-   - Nút quyên góp Buy Me a Coffee / Ko-fi với bảo vệ chống tabnabbing `noopener,noreferrer`.
-   - URL đọc trực tiếp từ `src/config/monetization.ts` (không phải localStorage).
+2. **Cổng Quyên Góp Thực Tế (`DonationModal.tsx` & `SupportButton.tsx`):**
+   - Cổng quyên góp đa kênh trực tiếp: Quét mã **VietQR** chuẩn NAPAS 24/7 (sinh mã tự động với số tài khoản, tên chủ TK, số tiền và nội dung chuyển khoản), **Ví MoMo**, và **Ko-fi quốc tế**.
+   - Bộ chọn mức ủng hộ nhanh (20k ☕, 50k 🪐, 100k 🚀, 200k 🌟 hoặc số tiền tùy ý).
+   - Cho phép người ủng hộ để lại họ tên và lời nhắn chúc mừng dự án.
+   - **Bảng Vàng Thiên Hà (Supporters Wall):** Vinh danh các nhà du hành đã quyên góp thật.
 3. **Tiếp thị Liên kết (`AffiliateSection.tsx`):**
    - Danh mục 3 sản phẩm: Kính thiên văn Celestron 127EQ (Amazon), Sách Cosmos (Carl Sagan), Khóa học Thiên văn Coursera.
    - Hỗ trợ 2 variant: `cards` (dạng thẻ lưới) và `compact` (dạng dòng tối giản).
-   - URL đọc trực tiếp từ `src/config/monetization.ts` (không phải localStorage).
-4. **Cấu hình Kiếm tiền (`src/config/monetization.ts`) — NGUỒN SỰ THẬT DUY NHẤT:**
-   - Mọi URL affiliate/donate hiển thị cho khách đều đọc từ file này.
-   - Đổi link → sửa file → `git commit` → Vercel tự deploy lại.
-   - **KHÔNG** dùng localStorage hay Admin Dashboard để chỉnh URL production.
-5. **Hệ thống Theo dõi Chuyển đổi (`src/services/analyticsTracker.ts`):**
-   - Đếm lượt click demo cục bộ (chỉ trên máy hiện tại, không phải dữ liệu khách thật).
-   - Tính toán ước tính hoa hồng demo (VND và USD).
-   - Seed data có prefix `[MẪU]` để phân biệt với dữ liệu thật.
-   - Lưu trong `localStorage` — mỗi người dùng có dữ liệu riêng.
-6. **Bảng xem trước Demo (`AdminDashboard.tsx` & `AdminAuthGate.tsx`):**
-   - **Mã PIN mặc định:** `888888` (chỉ là UI gate chống bấm nhầm, không phải bảo mật thật).
-   - **Cách truy cập:** Nhấn `Ctrl + Shift + A` (hoặc `Cmd + Shift + A`), hoặc vào URL `?admin=portal`, hoặc nhấp biểu tượng ổ khóa mờ góc dưới cùng bên phải màn hình.
-   - **Khóa tự động:** Khóa 15 phút nếu nhập sai mã PIN quá 5 lần.
-   - **Chức năng:** Xem 4 thẻ KPI ước tính demo, bảng kê sản phẩm, nhật ký click cục bộ, đổi mã PIN, xem link config (read-only), xuất CSV.
-   - **Lưu ý:** Dữ liệu trong Dashboard là ước tính demo trên máy hiện tại, KHÔNG phải số liệu doanh thu thật.
+   - URL đọc trực tiếp từ `src/config/monetization.ts`.
+4. **Cấu hình Kiếm tiền & Tài khoản Ngân hàng (`src/config/monetization.ts`):**
+   - Nguồn sự thật duy nhất cho cấu hình ngân hàng thụ hưởng `BANKING_CONFIG` (Mã ngân hàng VietQR, số tài khoản, tên chủ tài khoản, MoMo) và `MONETIZATION_CONFIG`.
+5. **Dịch vụ Quản lý Doanh thu & Quyên góp Thật (`src/services/analyticsTracker.ts`):**
+   - Quản lý các giao dịch quyên góp thực tế `RealDonation` (ID, tên người gửi, số tiền, phương thức, trạng thái, ngày giờ, lời nhắn).
+   - Tính toán tổng số tiền thật nhận được (`totalConfirmedRevenueVnd`) và tiền chờ đối soát.
+   - Hỗ trợ Admin thêm giao dịch thủ công khi kiểm tra thấy tiền về app ngân hàng.
+   - Hỗ trợ duyệt trạng thái và xuất sổ cái sao kê CSV chuẩn.
+6. **Bảng Điều Hành Doanh thu & Quyên góp Thực tế (`AdminDashboard.tsx` & `AdminAuthGate.tsx`):**
+   - **Mã PIN mặc định:** `888888`.
+   - **Cách truy cập:** Nhấn `Ctrl + Shift + A` (hoặc `Cmd + Shift + A`), hoặc vào URL `?admin=portal`, hoặc nhấp biểu tượng ổ khóa góc dưới cùng bên phải màn hình.
+   - **Chức năng:** Giám sát 4 thẻ KPI thực tế (Tổng tiền ủng hộ thật, Lượt click affiliate thật, Lượt mở cổng ủng hộ, Lượt chia sẻ), xem sổ cái sao kê, thêm giao dịch mới, duyệt giao dịch, đổi mã PIN, cấu hình ngân hàng VietQR và xuất file sao kê CSV.
 
 ---
 

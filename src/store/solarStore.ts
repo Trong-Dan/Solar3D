@@ -38,6 +38,7 @@ interface SolarState {
   isInfoPanelOpen: boolean;
   activeInfoTab: InfoTabType;
   isSettingsOpen: boolean;
+  isDonationModalOpen: boolean;
   focusRequest: number;
   isPanoramaMode: boolean;
   isDockCollapsed: boolean;
@@ -68,6 +69,8 @@ interface SolarState {
   resetView: () => void;
   openSettings: () => void;
   closeSettings: () => void;
+  openDonationModal: () => void;
+  closeDonationModal: () => void;
   requestCameraFocus: () => void;
   togglePanoramaMode: () => void;
   toggleDockCollapsed: () => void;
@@ -104,6 +107,7 @@ export const useSolarStore = create<SolarState>((set, get) => ({
   isInfoPanelOpen: false,
   activeInfoTab: 'overview',
   isSettingsOpen: false,
+  isDonationModalOpen: false,
   focusRequest: 0,
   isPanoramaMode: false,
   isDockCollapsed: false,
@@ -302,6 +306,16 @@ export const useSolarStore = create<SolarState>((set, get) => ({
   closeSettings: () => {
     soundEngine.playClick();
     set({ isSettingsOpen: false });
+  },
+
+  openDonationModal: () => {
+    soundEngine.playClick();
+    set({ isDonationModalOpen: true });
+  },
+
+  closeDonationModal: () => {
+    soundEngine.playClick();
+    set({ isDonationModalOpen: false });
   },
 
   requestCameraFocus: () => {

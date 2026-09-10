@@ -8,6 +8,7 @@ const TourGuideModal = lazy(() => import('./components/ui/TourGuideModal').then(
 const SettingsModal = lazy(() => import('./components/ui/SettingsModal').then((m) => ({ default: m.SettingsModal })));
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 const AdminAuthGate = lazy(() => import('./components/admin/AdminAuthGate').then((m) => ({ default: m.AdminAuthGate })));
+const DonationModal = lazy(() => import('./components/monetization/DonationModal').then((m) => ({ default: m.DonationModal })));
 import { LoadingScreen } from './components/ui/LoadingScreen';
 import { SimulationClock } from './components/ui/SimulationClock';
 import { MiniMap } from './components/ui/MiniMap';
@@ -16,6 +17,8 @@ import { Lock } from 'lucide-react';
 import { useSolarStore } from './store/solarStore';
 import { allCelestialBodies } from './data/planets';
 import { useDeviceProfile } from './utils/deviceProfile';
+
+import { validateAdminSession, destroyAdminSession } from './utils/security';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -35,16 +38,21 @@ export default function App() {
   const { isTouch, tier: deviceTier } = useDeviceProfile();
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [showAdminShortcut, setShowAdminShortcut] = useState(false);
 
-  // Check URL parameter (?admin=portal or #admin) and session on mount
+  // Check URL parameter (?admin=portal or #admin) and validate cryptographic session
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (sessionStorage.getItem('ss3d_admin_authenticated') === 'true') {
-      setIsAdminAuthenticated(true);
-    }
+
+    validateAdminSession().then((isValid) => {
+      setIsAdminAuthenticated(isValid);
+      if (isValid) setShowAdminShortcut(true);
+    });
+
     const params = new URLSearchParams(window.location.search);
     if (params.get('admin') === 'portal' || window.location.hash === '#admin') {
       setIsAdminModalOpen(true);
+      setShowAdminShortcut(true);
     }
   }, []);
 
@@ -193,29 +201,40 @@ export default function App() {
             <AdminDashboard
               onClose={() => setIsAdminModalOpen(false)}
               onLogout={() => {
-                sessionStorage.removeItem('ss3d_admin_authenticated');
+                destroyAdminSession();
                 setIsAdminAuthenticated(false);
                 setIsAdminModalOpen(false);
+                setShowAdminShortcut(false);
               }}
             />
           ) : (
             <AdminAuthGate
-              onSuccess={() => setIsAdminAuthenticated(true)}
+              onSuccess={() => {
+                setIsAdminAuthenticated(true);
+                setShowAdminShortcut(true);
+              }}
               onClose={() => setIsAdminModalOpen(false)}
             />
           )}
         </Suspense>
       )}
 
-      {/* Discrete Admin Keyhole Trigger at Bottom Right */}
-      <button
-        className="admin-portal-floating-trigger"
-        onClick={() => setIsAdminModalOpen(true)}
-        title="Cổng Quản Trị Doanh Thu & Tài Sản (Ctrl + Shift + A)"
-        aria-label="Cổng Quản Trị"
-      >
-        <Lock size={12} />
-      </button>
+      {/* Real Donation Gateway Modal (VietQR / MoMo / Ko-fi / Supporters Wall) */}
+      <Suspense fallback={null}>
+        <DonationModal />
+      </Suspense>
+
+      {/* Admin Trigger chỉ hiện khi Admin đã đăng nhập hoặc kích hoạt secret URL */}
+      {showAdminShortcut && (
+        <button
+          className="admin-portal-floating-trigger animate-fade-in"
+          onClick={() => setIsAdminModalOpen(true)}
+          title="Bảng Quản Trị (Ctrl + Shift + A)"
+          aria-label="Cổng Quản Trị"
+        >
+          <Lock size={12} />
+        </button>
+      )}
     </main>
   );
 }

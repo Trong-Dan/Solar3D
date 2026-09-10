@@ -1,6 +1,5 @@
-import { Heart, Coffee, ExternalLink } from 'lucide-react';
-import { analyticsTracker } from '../../services/analyticsTracker';
-import { MONETIZATION_CONFIG } from '../../config/monetization';
+import { Heart, Coffee, QrCode } from 'lucide-react';
+import { useSolarStore } from '../../store/solarStore';
 
 interface SupportButtonProps {
   variant?: 'full' | 'compact' | 'inline';
@@ -8,18 +7,15 @@ interface SupportButtonProps {
 }
 
 export function SupportButton({ variant = 'full', className = '' }: SupportButtonProps) {
-  const supportUrl = MONETIZATION_CONFIG.supportUrl;
+  const openDonationModal = useSolarStore((s) => s.openDonationModal);
 
   const handleSupport = () => {
-    analyticsTracker.trackDonationClick();
-    if (supportUrl) {
-      window.open(supportUrl, '_blank', 'noopener,noreferrer');
-    }
+    openDonationModal();
   };
 
   if (variant === 'inline') {
     return (
-      <button className={`support-inline-btn ${className}`} onClick={handleSupport}>
+      <button className={`support-inline-btn ${className}`} onClick={handleSupport} title="Ủng hộ dự án qua VietQR / MoMo / Ko-fi">
         <Coffee size={14} />
         <span>Ủng hộ ☕</span>
       </button>
@@ -28,7 +24,7 @@ export function SupportButton({ variant = 'full', className = '' }: SupportButto
 
   if (variant === 'compact') {
     return (
-      <button className={`support-compact-btn ${className}`} onClick={handleSupport}>
+      <button className={`support-compact-btn ${className}`} onClick={handleSupport} title="Ủng hộ dự án qua VietQR / MoMo / Ko-fi">
         <Heart size={15} />
         <span>Ủng hộ dự án</span>
       </button>
@@ -41,15 +37,14 @@ export function SupportButton({ variant = 'full', className = '' }: SupportButto
         <Coffee size={20} />
       </div>
       <div className="support-card-text">
-        <div className="support-card-title">Ủng hộ dự án</div>
+        <div className="support-card-title">Ủng hộ dự án Hệ Mặt Trời 3D</div>
         <div className="support-card-desc">
-          Dự án hoàn toàn miễn phí. Nếu bạn thích, hãy ủng hộ để chúng tôi tiếp tục phát triển!
+          Dự án phi lợi nhuận phục vụ cộng đồng thiên văn. Mọi sự ủng hộ (VietQR, MoMo, Ko-fi) đều được vinh danh trên Bảng Vàng Thiên Hà!
         </div>
       </div>
       <button className="support-card-cta" onClick={handleSupport}>
-        <Heart size={14} />
-        <span>Ủng hộ</span>
-        <ExternalLink size={12} />
+        <QrCode size={14} />
+        <span>Ủng hộ ngay</span>
       </button>
     </div>
   );
