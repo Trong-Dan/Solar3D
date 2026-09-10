@@ -272,9 +272,11 @@ class AnalyticsTracker {
 
     try {
       const params = 'per_page=50';
-
-      // Gọi qua endpoint proxy /api/sepay để vượt qua chính sách CORS của trình duyệt
       const proxyUrl = `/api/sepay?${params}`;
+
+      // Giới hạn thời gian kết nối tối đa 8 giây để tránh treo giao diện
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
       let response: Response;
       try {
@@ -284,9 +286,13 @@ class AnalyticsTracker {
             Authorization: `Bearer ${key}`,
             'Content-Type': 'application/json',
           },
+          signal: controller.signal,
         });
-      } catch {
-        // Dự phòng gọi trực tiếp tới SePay V2 nếu proxy chưa phản hồi
+      } catch (proxyErr: any) {
+        if (proxyErr?.name === 'AbortError') {
+          throw proxyErr;
+        }
+        // Dự phòng gọi trực tiếp tới SePay V2 nếu proxy không phản hồi
         const directUrl = `https://userapi.sepay.vn/v2/transactions?${params}`;
         response = await fetch(directUrl, {
           method: 'GET',
@@ -294,7 +300,10 @@ class AnalyticsTracker {
             Authorization: `Bearer ${key}`,
             'Content-Type': 'application/json',
           },
+          signal: controller.signal,
         });
+      } finally {
+        clearTimeout(timeoutId);
       }
 
       if (!response.ok) {
@@ -305,17 +314,34 @@ class AnalyticsTracker {
             message: 'API Token SePay không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại mã Token bạn đã copy trên SePay.vn.',
           };
         }
+        if (response.status === 429) {
+          return {
+            success: false,
+            count: 0,
+            message: 'Thao tác quá nhanh! SePay giới hạn tối đa 3 yêu cầu/giây. Vui lòng chờ 10 giây rồi thử lại.',
+          };
+        }
         if (response.status === 404) {
           return {
             success: false,
             count: 0,
-            message: 'Không tìm thấy tài khoản ngân hàng hoặc API SePay không tồn tại.',
+            message: 'Không tìm thấy máy chủ đồng bộ /api/sepay. Hãy đảm bảo dự án đang chạy với lệnh "npm run dev".',
           };
         }
         return { success: false, count: 0, message: `Lỗi kết nối máy chủ SePay (Mã HTTP: ${response.status})` };
       }
 
       const data = await response.json();
+
+      // Kiểm tra phản hồi lỗi từ SePay (nếu có)
+      if (data && (data.status === 'error' || data.error)) {
+        return {
+          success: false,
+          count: 0,
+          message: `SePay thông báo: ${data.message || data.error || 'Yêu cầu không được chấp thuận'}`,
+        };
+      }
+
       // Hỗ trợ cả SePay API V2 (data.data), V1 (data.transactions), hoặc mảng trực tiếp
       const transactions: any[] = Array.isArray(data.data)
         ? data.data
@@ -422,11 +448,14 @@ class AnalyticsTracker {
             ? `Đã kết nối SePay: Toàn bộ ${totalAvailable} giao dịch MB Bank gần nhất đã được đồng bộ từ trước.`
             : 'Đã kết nối SePay thành công: Hiện chưa có giao dịch mới nào trên tài khoản SePay.',
       };
-    } catch {
+    } catch (err: any) {
+      const isAbort = err?.name === 'AbortError' || String(err).includes('aborted');
       return {
         success: false,
         count: 0,
-        message: 'Lỗi mạng khi kết nối SePay. Vui lòng kiểm tra lại đường truyền.',
+        message: isAbort
+          ? 'Quá thời gian kết nối (8 giây). Máy chủ SePay hoặc mạng bị chậm, vui lòng thử lại.'
+          : 'Lỗi mạng khi kết nối SePay. Vui lòng kiểm tra lại đường truyền.',
       };
     }
   }

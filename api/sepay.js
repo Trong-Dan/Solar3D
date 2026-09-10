@@ -43,14 +43,19 @@ export default async function handler(req, res) {
   }
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     const upstream = await fetch(targetUrl, {
       method: 'GET',
       headers: {
         Authorization: authHeader,
         'Content-Type': 'application/json',
-        'User-Agent': 'SolarSystem3D-App/1.0',
+        Accept: 'application/json',
       },
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     const text = await upstream.text();
     try {

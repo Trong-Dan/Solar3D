@@ -94,8 +94,11 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
     return () => unsubscribe();
   }, []);
 
-  const handleSyncSepay = useCallback(async (customKey?: string) => {
-    if (isSyncingSepay) return;
+  const isSyncingRef = useRef(false);
+
+  const handleSyncSepay = async (customKey?: string) => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
     setIsSyncingSepay(true);
     setSyncFeedback(null);
     const keyToUse = (typeof customKey === 'string' ? customKey : sepayApiKey).trim();
@@ -110,33 +113,19 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
       setSyncFeedback({ success: false, message: 'Đồng bộ thất bại, vui lòng kiểm tra kết nối mạng.' });
       setTimeout(() => setSyncFeedback(null), 6000);
     } finally {
+      isSyncingRef.current = false;
       setIsSyncingSepay(false);
     }
-  }, [isSyncingSepay, sepayApiKey]);
+  };
 
-  // Tự động đồng bộ từ SePay ngay khi mở bảng điều hành và quét nền mỗi 30 giây
+  // Chỉ đồng bộ 1 lần khi mở Admin (nếu đã có SePay API Token), tuyệt đối không loop
   useEffect(() => {
     const key = analyticsTracker.getSepayApiKey();
-    if (key) {
+    if (key && !isSyncingRef.current) {
       handleSyncSepay(key);
     }
-
-    const interval = setInterval(() => {
-      const currentKey = analyticsTracker.getSepayApiKey();
-      if (currentKey) {
-        analyticsTracker.syncFromSepay(currentKey);
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [handleSyncSepay]);
-
-  // Tự động đồng bộ khi người dùng chuyển sang tab Tổng quan hoặc Sao kê
-  useEffect(() => {
-    if ((activeTab === 'overview' || activeTab === 'ledger') && analyticsTracker.getSepayApiKey()) {
-      handleSyncSepay();
-    }
-  }, [activeTab, handleSyncSepay]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSaveSepayKey = (e: React.FormEvent) => {
     e.preventDefault();
