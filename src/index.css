@@ -6295,6 +6295,69 @@ a, button, input, select, textarea, [role="button"] {
   width: 100%;
 }
 
+.donation-single-qr-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 440px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.donation-to-supporters-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(245, 158, 11, 0.35);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.callout-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.btn-go-to-supporters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #0b0f19;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+.btn-go-to-supporters:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.45);
+}
+
+.btn-go-to-supporters.momo-accent {
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+}
+.btn-go-to-supporters.momo-accent:hover {
+  box-shadow: 0 6px 18px rgba(236, 72, 153, 0.45);
+}
+
 .donation-qr-card-wrap {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
   border-radius: 20px;
@@ -6894,6 +6957,109 @@ a, button, input, select, textarea, [role="button"] {
 .supporters-subtitle {
   font-size: 0.82rem;
   color: #94a3b8;
+}
+
+.supporters-header-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-toggle-register-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 22px;
+  border-radius: 9999px;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.15);
+}
+.btn-toggle-register-form:hover,
+.btn-toggle-register-form.is-active {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: #f59e0b;
+  color: #fef08a;
+  transform: translateY(-1px);
+}
+
+.supporters-register-card {
+  background: linear-gradient(180deg, rgba(20, 26, 46, 0.95) 0%, rgba(10, 14, 28, 0.95) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 18px;
+  padding: 22px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(245, 158, 11, 0.08);
+}
+
+.register-card-header {
+  margin-bottom: 16px;
+}
+
+.register-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fef08a;
+}
+
+.register-subtitle {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.register-method-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.register-method-label {
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.register-method-chips {
+  display: flex;
+  gap: 8px;
+}
+
+.register-method-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.register-method-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+.register-method-chip.active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+  color: #fbbf24;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
 }
 
 .supporters-grid {

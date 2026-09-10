@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Send,
   RotateCcw,
+  ArrowRight,
 } from 'lucide-react';
 import { useSolarStore } from '../../store/solarStore';
 import { analyticsTracker, RealDonation } from '../../services/analyticsTracker';
@@ -31,6 +32,8 @@ export function DonationModal() {
   const [customAmount, setCustomAmount] = useState<string>('');
   const [donorName, setDonorName] = useState<string>('');
   const [message, setMessage] = useState<string>('');
+  const [selectedMethod, setSelectedMethod] = useState<'vietqr' | 'momo' | 'kofi'>('vietqr');
+  const [showRegisterForm, setShowRegisterForm] = useState<boolean>(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [submittedDonation, setSubmittedDonation] = useState<RealDonation | null>(null);
@@ -106,7 +109,7 @@ export function DonationModal() {
       donorName: donorName.trim() || 'Nhà du hành ẩn danh',
       amount: currentAmount,
       message: message.trim() || 'Ủng hộ dự án Hệ Mặt Trời 3D',
-      method: activeTab === 'momo' ? 'momo' : activeTab === 'kofi' ? 'kofi' : 'vietqr',
+      method: selectedMethod,
       transactionRef: transferContent,
       status: 'pending',
       isPublic: true,
@@ -114,6 +117,7 @@ export function DonationModal() {
 
     setSubmittedDonation(donation);
     setIsSuccess(true);
+    setShowRegisterForm(false);
     setSupporters(analyticsTracker.getPublicSupporters());
   };
 
@@ -239,269 +243,119 @@ export function DonationModal() {
               </div>
             </div>
           ) : activeTab === 'vietqr' ? (
-            <div className="donation-tab-grid animate-fade-in">
-              {/* Left Column: Real MB Bank QR Code Card */}
-              <div className="donation-qr-column">
-                <div className="donation-qr-card-wrap">
-                  <div className="donation-qr-header-tag">
-                    <ShieldCheck size={14} className="text-emerald-400" />
-                    <span>QUÉT MÃ VIETQR (MB BANK)</span>
-                  </div>
-                  <div className="donation-real-qr-container">
-                    <img
-                      src={BANKING_CONFIG.realMbQrImage}
-                      alt="Mã QR MB Bank Thật - Vũ Trọng Dân"
-                      className="donation-real-qr-img"
-                      loading="eager"
-                    />
-                  </div>
-                  <div className="donation-qr-caption">
-                    Mở app ngân hàng (MB, Vietcombank, Techcombank, VPBank...) để quét mã chuyển nhanh 24/7!
-                  </div>
+            <div className="donation-single-qr-view animate-fade-in">
+              <div className="donation-qr-card-wrap">
+                <div className="donation-qr-header-tag">
+                  <ShieldCheck size={14} className="text-emerald-400" />
+                  <span>QUÉT MÃ VIETQR (MB BANK)</span>
+                </div>
+                <div className="donation-real-qr-container">
+                  <img
+                    src={BANKING_CONFIG.realMbQrImage}
+                    alt="Mã QR MB Bank Thật - Vũ Trọng Dân"
+                    className="donation-real-qr-img"
+                    loading="eager"
+                  />
+                </div>
+                <div className="donation-qr-caption">
+                  Mở bất kỳ app ngân hàng nào (MB, Vietcombank, Techcombank, VPBank...) để quét mã chuyển nhanh 24/7!
+                </div>
 
-                  {/* Single-line quick copy bar for STK inside unified card */}
-                  <div className="donation-quick-stk-bar">
-                    <div className="stk-info">
-                      <span className="stk-label">STK MB Bank</span>
-                      <span className="stk-val font-mono">{bankSettings.accountNo}</span>
-                    </div>
-                    <button
-                      type="button"
-                      className={`quick-copy-stk-btn ${copiedField === 'accountNo' ? 'copied' : ''}`}
-                      onClick={() => copyToClipboard(bankSettings.accountNo, 'accountNo')}
-                      title="Sao chép số tài khoản MB"
-                    >
-                      {copiedField === 'accountNo' ? <Check size={13} /> : <Copy size={13} />}
-                      <span>{copiedField === 'accountNo' ? 'Đã chép' : 'Sao chép'}</span>
-                    </button>
+                {/* Single-line quick copy bar for STK */}
+                <div className="donation-quick-stk-bar">
+                  <div className="stk-info">
+                    <span className="stk-label">STK MB Bank</span>
+                    <span className="stk-val font-mono">{bankSettings.accountNo}</span>
                   </div>
+                  <button
+                    type="button"
+                    className={`quick-copy-stk-btn ${copiedField === 'accountNo' ? 'copied' : ''}`}
+                    onClick={() => copyToClipboard(bankSettings.accountNo, 'accountNo')}
+                    title="Sao chép số tài khoản MB"
+                  >
+                    {copiedField === 'accountNo' ? <Check size={13} /> : <Copy size={13} />}
+                    <span>{copiedField === 'accountNo' ? 'Đã chép' : 'Sao chép STK'}</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Right Column: Amount Selection & Donor Message Form */}
-              <div className="donation-form-column">
-                <form onSubmit={handleSubmitConfirmation} className="donation-step-form">
-                  <div className="donation-step-title">
-                    <span className="step-num">1</span>
-                    <span>Chọn mức ủng hộ</span>
-                  </div>
-
-                  {/* Preset Amount Chips */}
-                  <div className="donation-preset-grid">
-                    {BANKING_CONFIG.presetAmounts.map((preset) => {
-                      const isSelected = !customAmount && amount === preset;
-                      const label =
-                        preset === 20000
-                          ? '20.000₫ ☕'
-                          : preset === 50000
-                          ? '50.000₫ 🪐'
-                          : preset === 100000
-                          ? '100.000₫ 🚀'
-                          : '200.000₫ 🌟';
-                      return (
-                        <button
-                          key={preset}
-                          type="button"
-                          className={`donation-preset-btn ${isSelected ? 'active' : ''}`}
-                          onClick={() => handleSelectPreset(preset)}
-                        >
-                          <span className="preset-amount">{label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Custom Amount Input */}
-                  <div className="donation-custom-input-box">
-                    <label htmlFor={`${formId}-custom`}>Hoặc nhập số tiền tùy chọn (VND):</label>
-                    <div className="custom-input-wrap">
-                      <input
-                        id={`${formId}-custom`}
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="Ví dụ: 300.000"
-                        value={customAmount}
-                        onChange={handleCustomAmountChange}
-                        className="custom-amount-input"
-                      />
-                      <span className="currency-suffix">VNĐ</span>
-                    </div>
-                  </div>
-
-                  <div className="donation-step-title" style={{ marginTop: '16px' }}>
-                    <span className="step-num">2</span>
-                    <span>Thông tin người gửi & Lời nhắn</span>
-                  </div>
-
-                  <div className="donation-input-group">
-                    <label htmlFor={`${formId}-name`}>Tên hiển thị trên Bảng Vàng (để trống nếu muốn ẩn danh):</label>
-                    <input
-                      id={`${formId}-name`}
-                      type="text"
-                      placeholder="Ví dụ: Trần Hoàng Nam, Vũ Trụ Fan..."
-                      value={donorName}
-                      onChange={(e) => setDonorName(e.target.value)}
-                      maxLength={30}
-                      className="donation-text-input"
-                    />
-                  </div>
-
-                  <div className="donation-input-group">
-                    <label htmlFor={`${formId}-msg`}>Lời nhắn gửi gắm đến tác giả:</label>
-                    <textarea
-                      id={`${formId}-msg`}
-                      placeholder="Cảm ơn bạn vì một trang web 3D vũ trụ tuyệt vời..."
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      maxLength={160}
-                      rows={2}
-                      className="donation-textarea"
-                    />
-                  </div>
-
-                  <button type="submit" className="donation-submit-cta">
-                    <Send size={16} />
-                    <span>Tôi Đã Chuyển Khoản Thành Công</span>
-                  </button>
-
-                  <div className="donation-trust-note">
-                    <ShieldCheck size={14} />
-                    <span>Mọi khoản tiền chuyển thẳng về tài khoản cá nhân, an toàn và minh bạch 100%.</span>
-                  </div>
-                </form>
+              {/* Callout to Bảng Vàng */}
+              <div className="donation-to-supporters-callout">
+                <div className="callout-text">
+                  <Sparkles size={16} className="text-amber-400" />
+                  <span>Bạn đã chuyển khoản thành công? Hãy báo tin để được vinh danh!</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn-go-to-supporters"
+                  onClick={() => {
+                    setSelectedMethod('vietqr');
+                    setActiveTab('supporters');
+                    setShowRegisterForm(true);
+                  }}
+                >
+                  <Award size={15} />
+                  <span>Ghi Danh Lên Bảng Vàng</span>
+                  <ArrowRight size={14} />
+                </button>
               </div>
             </div>
           ) : activeTab === 'momo' ? (
-            <div className="donation-tab-grid animate-fade-in">
-              {/* Left Column: Real MoMo QR Code Card */}
-              <div className="donation-qr-column">
-                <div className="donation-qr-card-wrap momo-glow">
-                  <div className="donation-qr-header-tag momo-tag">
-                    <Wallet size={14} className="text-pink-400" />
-                    <span>QUÉT MÃ VÍ MOMO (24/7)</span>
-                  </div>
-                  <div className="donation-real-qr-container">
-                    <img
-                      src={BANKING_CONFIG.realMomoQrImage}
-                      alt="Mã QR Ví MoMo Thật - Vũ Trọng Dân"
-                      className="donation-real-qr-img momo-qr-img"
-                      loading="eager"
-                    />
-                  </div>
-                  <div className="donation-qr-caption">
-                    Mở ứng dụng MoMo hoặc bất kỳ app ngân hàng nào để quét mã thanh toán 24/7!
-                  </div>
+            <div className="donation-single-qr-view animate-fade-in">
+              <div className="donation-qr-card-wrap momo-glow">
+                <div className="donation-qr-header-tag momo-tag">
+                  <Wallet size={14} className="text-pink-400" />
+                  <span>QUÉT MÃ VÍ MOMO (24/7)</span>
+                </div>
+                <div className="donation-real-qr-container">
+                  <img
+                    src={BANKING_CONFIG.realMomoQrImage}
+                    alt="Mã QR Ví MoMo Thật - Vũ Trọng Dân"
+                    className="donation-real-qr-img momo-qr-img"
+                    loading="eager"
+                  />
+                </div>
+                <div className="donation-qr-caption">
+                  Mở ứng dụng MoMo hoặc bất kỳ app ngân hàng nào để quét mã thanh toán 24/7!
+                </div>
 
-                  {/* Single-line quick copy bar for MoMo phone inside unified card */}
-                  <div className="donation-quick-stk-bar">
-                    <div className="stk-info">
-                      <span className="stk-label">SĐT Ví MoMo</span>
-                      <span className="stk-val font-mono">{bankSettings.momoPhone}</span>
-                    </div>
-                    <button
-                      type="button"
-                      className={`quick-copy-stk-btn momo-copy-btn ${copiedField === 'momoPhone' ? 'copied' : ''}`}
-                      onClick={() => copyToClipboard(bankSettings.momoPhone, 'momoPhone')}
-                      title="Sao chép số điện thoại MoMo"
-                    >
-                      {copiedField === 'momoPhone' ? <Check size={13} /> : <Copy size={13} />}
-                      <span>{copiedField === 'momoPhone' ? 'Đã chép' : 'Sao chép'}</span>
-                    </button>
+                {/* Single-line quick copy bar for MoMo phone */}
+                <div className="donation-quick-stk-bar">
+                  <div className="stk-info">
+                    <span className="stk-label">SĐT Ví MoMo</span>
+                    <span className="stk-val font-mono">{bankSettings.momoPhone}</span>
                   </div>
+                  <button
+                    type="button"
+                    className={`quick-copy-stk-btn momo-copy-btn ${copiedField === 'momoPhone' ? 'copied' : ''}`}
+                    onClick={() => copyToClipboard(bankSettings.momoPhone, 'momoPhone')}
+                    title="Sao chép số điện thoại MoMo"
+                  >
+                    {copiedField === 'momoPhone' ? <Check size={13} /> : <Copy size={13} />}
+                    <span>{copiedField === 'momoPhone' ? 'Đã chép' : 'Sao chép SĐT'}</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Right Column: Amount Selection & Donor Message Form */}
-              <div className="donation-form-column">
-                <form onSubmit={handleSubmitConfirmation} className="donation-step-form">
-                  <div className="donation-step-title">
-                    <span className="step-num">1</span>
-                    <span>Chọn mức ủng hộ MoMo</span>
-                  </div>
-
-                  {/* Preset Amount Chips */}
-                  <div className="donation-preset-grid">
-                    {BANKING_CONFIG.presetAmounts.map((preset) => {
-                      const isSelected = !customAmount && amount === preset;
-                      const label =
-                        preset === 20000
-                          ? '20.000₫ ☕'
-                          : preset === 50000
-                          ? '50.000₫ 🪐'
-                          : preset === 100000
-                          ? '100.000₫ 🚀'
-                          : '200.000₫ 🌟';
-                      return (
-                        <button
-                          key={preset}
-                          type="button"
-                          className={`donation-preset-btn ${isSelected ? 'active' : ''}`}
-                          onClick={() => handleSelectPreset(preset)}
-                        >
-                          <span className="preset-amount">{label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Custom Amount Input */}
-                  <div className="donation-custom-input-box">
-                    <label htmlFor={`${formId}-custom-momo`}>Hoặc nhập số tiền tùy chọn (VND):</label>
-                    <div className="custom-input-wrap">
-                      <input
-                        id={`${formId}-custom-momo`}
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="Ví dụ: 300.000"
-                        value={customAmount}
-                        onChange={handleCustomAmountChange}
-                        className="custom-amount-input"
-                      />
-                      <span className="currency-suffix">VNĐ</span>
-                    </div>
-                  </div>
-
-                  <div className="donation-step-title" style={{ marginTop: '16px' }}>
-                    <span className="step-num">2</span>
-                    <span>Thông tin người gửi & Lời nhắn</span>
-                  </div>
-
-                  <div className="donation-input-group">
-                    <label htmlFor={`${formId}-name-momo`}>Tên hiển thị trên Bảng Vàng (để trống nếu muốn ẩn danh):</label>
-                    <input
-                      id={`${formId}-name-momo`}
-                      type="text"
-                      placeholder="Ví dụ: Trần Hoàng Nam, Vũ Trụ Fan..."
-                      value={donorName}
-                      onChange={(e) => setDonorName(e.target.value)}
-                      maxLength={30}
-                      className="donation-text-input"
-                    />
-                  </div>
-
-                  <div className="donation-input-group">
-                    <label htmlFor={`${formId}-msg-momo`}>Lời nhắn gửi gắm đến tác giả:</label>
-                    <textarea
-                      id={`${formId}-msg-momo`}
-                      placeholder="Cảm ơn bạn vì một trang web 3D vũ trụ tuyệt vời..."
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      maxLength={160}
-                      rows={2}
-                      className="donation-textarea"
-                    />
-                  </div>
-
-                  <button type="submit" className="donation-submit-cta momo-cta">
-                    <Send size={16} />
-                    <span>Tôi Đã Chuyển Tiền MoMo Thành Công</span>
-                  </button>
-
-                  <div className="donation-trust-note">
-                    <ShieldCheck size={14} />
-                    <span>Ủng hộ trực tiếp vào Ví MoMo {BANKING_CONFIG.momoPhone} — {BANKING_CONFIG.momoName}.</span>
-                  </div>
-                </form>
+              {/* Callout to Bảng Vàng */}
+              <div className="donation-to-supporters-callout">
+                <div className="callout-text">
+                  <Sparkles size={16} className="text-pink-400" />
+                  <span>Bạn đã chuyển tiền MoMo thành công? Hãy báo tin để được vinh danh!</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn-go-to-supporters momo-accent"
+                  onClick={() => {
+                    setSelectedMethod('momo');
+                    setActiveTab('supporters');
+                    setShowRegisterForm(true);
+                  }}
+                >
+                  <Award size={15} />
+                  <span>Ghi Danh Lên Bảng Vàng</span>
+                  <ArrowRight size={14} />
+                </button>
               </div>
             </div>
           ) : activeTab === 'kofi' ? (
@@ -547,7 +401,140 @@ export function DonationModal() {
                 <p className="supporters-subtitle">
                   Chân thành cảm ơn những người bạn tuyệt vời đã đồng hành và tiếp sức cho dự án Hệ Mặt Trời 3D!
                 </p>
+                <div className="supporters-header-actions">
+                  <button
+                    type="button"
+                    className={`btn-toggle-register-form ${showRegisterForm ? 'is-active' : ''}`}
+                    onClick={() => setShowRegisterForm((prev) => !prev)}
+                  >
+                    <Send size={14} />
+                    <span>{showRegisterForm ? '✕ Thu Gọn Biểu Mẫu' : '✍️ Báo Tin Chuyển Khoản & Ghi Danh'}</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Form thông tin người chuyển khoản đặt tại Bảng Vàng */}
+              {showRegisterForm && (
+                <div className="supporters-register-card animate-fade-in">
+                  <div className="register-card-header">
+                    <div className="register-title">
+                      <Sparkles size={16} className="text-amber-400" />
+                      <span>THÔNG TIN NGƯỜI CHUYỂN KHOẢN (GHI DANH TRI ÂN)</span>
+                    </div>
+                    <p className="register-subtitle">
+                      Nhập thông tin giao dịch bạn vừa thực hiện để tác giả xác nhận và vinh danh bạn lên Bảng Vàng Thiên Hà!
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleSubmitConfirmation} className="donation-step-form">
+                    {/* Method Selector */}
+                    <div className="register-method-row">
+                      <span className="register-method-label">Kênh bạn đã chuyển:</span>
+                      <div className="register-method-chips">
+                        <button
+                          type="button"
+                          className={`register-method-chip ${selectedMethod === 'vietqr' ? 'active' : ''}`}
+                          onClick={() => setSelectedMethod('vietqr')}
+                        >
+                          <QrCode size={13} />
+                          <span>VietQR (MB Bank)</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`register-method-chip ${selectedMethod === 'momo' ? 'active' : ''}`}
+                          onClick={() => setSelectedMethod('momo')}
+                        >
+                          <Wallet size={13} />
+                          <span>Ví MoMo</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Step 1: Mức tiền đã ủng hộ */}
+                    <div className="donation-step-title">
+                      <span className="step-num">1</span>
+                      <span>Số tiền bạn đã ủng hộ</span>
+                    </div>
+
+                    <div className="donation-preset-grid">
+                      {BANKING_CONFIG.presetAmounts.map((preset) => {
+                        const isSelected = !customAmount && amount === preset;
+                        const label =
+                          preset === 20000
+                            ? '20.000₫ ☕'
+                            : preset === 50000
+                            ? '50.000₫ 🪐'
+                            : preset === 100000
+                            ? '100.000₫ 🚀'
+                            : '200.000₫ 🌟';
+                        return (
+                          <button
+                            key={preset}
+                            type="button"
+                            className={`donation-preset-btn ${isSelected ? 'active' : ''}`}
+                            onClick={() => handleSelectPreset(preset)}
+                          >
+                            <span className="preset-amount">{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="donation-custom-input-box">
+                      <label htmlFor={`${formId}-custom`}>Hoặc nhập số tiền tùy chọn (VND):</label>
+                      <div className="custom-input-wrap">
+                        <input
+                          id={`${formId}-custom`}
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="Ví dụ: 300.000"
+                          value={customAmount}
+                          onChange={handleCustomAmountChange}
+                          className="custom-amount-input"
+                        />
+                        <span className="currency-suffix">VNĐ</span>
+                      </div>
+                    </div>
+
+                    {/* Step 2: Tên & Lời nhắn */}
+                    <div className="donation-step-title" style={{ marginTop: '16px' }}>
+                      <span className="step-num">2</span>
+                      <span>Thông tin người gửi & Lời nhắn</span>
+                    </div>
+
+                    <div className="donation-input-group">
+                      <label htmlFor={`${formId}-name`}>Tên hiển thị trên Bảng Vàng (để trống nếu muốn ẩn danh):</label>
+                      <input
+                        id={`${formId}-name`}
+                        type="text"
+                        placeholder="Ví dụ: Trần Hoàng Nam, Vũ Trụ Fan..."
+                        value={donorName}
+                        onChange={(e) => setDonorName(e.target.value)}
+                        maxLength={30}
+                        className="donation-text-input"
+                      />
+                    </div>
+
+                    <div className="donation-input-group">
+                      <label htmlFor={`${formId}-msg`}>Lời nhắn gửi gắm đến tác giả:</label>
+                      <textarea
+                        id={`${formId}-msg`}
+                        placeholder="Cảm ơn bạn vì một trang web 3D vũ trụ tuyệt vời..."
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        maxLength={160}
+                        rows={2}
+                        className="donation-textarea"
+                      />
+                    </div>
+
+                    <button type="submit" className="donation-submit-cta">
+                      <Send size={16} />
+                      <span>Gửi Thông Tin Ghi Danh Lên Bảng Vàng</span>
+                    </button>
+                  </form>
+                </div>
+              )}
 
               {supporters.length === 0 ? (
                 <div className="supporters-empty">
