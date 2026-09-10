@@ -261,7 +261,7 @@ class AnalyticsTracker {
 
   /** Tự động đồng bộ giao dịch chuyển khoản từ ngân hàng MB Bank qua SePay */
   public async syncFromSepay(overrideKey?: string): Promise<{ success: boolean; count: number; message: string }> {
-    const key = (overrideKey !== undefined ? overrideKey : this.sepayApiKey).trim();
+    const key = (typeof overrideKey === 'string' ? overrideKey : this.sepayApiKey).trim();
     if (!key) {
       return {
         success: false,

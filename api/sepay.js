@@ -4,9 +4,12 @@
 // ================================================================
 
 export default async function handler(req, res) {
-  // Cấu hình CORS Header cho phép Web Client gọi an toàn
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Cấu hình CORS an toàn theo chuẩn W3C (tránh xung đột giữa wildcard và credentials)
+  const origin = req.headers.origin || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  if (origin !== '*') {
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.setHeader(
     'Access-Control-Allow-Headers',
@@ -18,13 +21,18 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Chỉ chấp nhận phương thức GET' });
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).json({ error: 'Thiếu Authorization Token' });
   }
 
-  const { account_number, limit = '50' } = req.query;
-  const targetUrl = `https://my.sepay.vn/userapi/transactions/list?limit=${encodeURIComponent(limit)}${
+  const { account_number, limit = '50' } = req.query || {};
+  const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
+  const targetUrl = `https://my.sepay.vn/userapi/transactions/list?limit=${safeLimit}${
     account_number ? `&account_number=${encodeURIComponent(account_number)}` : ''
   }`;
 
@@ -37,8 +45,13 @@ export default async function handler(req, res) {
       },
     });
 
-    const data = await upstream.json();
-    return res.status(upstream.status).json(data);
+    const text = await upstream.text();
+    try {
+      const data = JSON.parse(text);
+      return res.status(upstream.status).json(data);
+    } catch {
+      return res.status(upstream.status).send(text);
+    }
   } catch (error) {
     return res.status(502).json({
       error: 'Không thể kết nối máy chủ SePay',

@@ -101,12 +101,16 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
     }
   }, [activeTab]);
 
-  const handleSyncSepay = async () => {
+  const handleSyncSepay = async (customKey?: string) => {
     if (isSyncingSepay) return;
     setIsSyncingSepay(true);
     setSyncFeedback(null);
+    const keyToUse = (typeof customKey === 'string' ? customKey : sepayApiKey).trim();
+    if (keyToUse) {
+      analyticsTracker.setSepayApiKey(keyToUse);
+    }
     try {
-      const res = await analyticsTracker.syncFromSepay();
+      const res = await analyticsTracker.syncFromSepay(keyToUse);
       setSyncFeedback({ success: res.success, message: res.message });
       setTimeout(() => setSyncFeedback(null), 6000);
     } catch {
@@ -613,7 +617,7 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                     <button
                       type="button"
                       className={`admin-btn-sync ${isSyncingSepay ? 'syncing' : ''}`}
-                      onClick={handleSyncSepay}
+                      onClick={() => handleSyncSepay(sepayApiKey)}
                       disabled={isSyncingSepay}
                       title="Tự động nạp các khoản chuyển tiền mới từ MB Bank qua SePay"
                     >
@@ -880,7 +884,7 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                         <button
                           type="button"
                           className={`admin-btn-sync ${isSyncingSepay ? 'syncing' : ''}`}
-                          onClick={handleSyncSepay}
+                          onClick={() => handleSyncSepay(sepayApiKey)}
                           disabled={isSyncingSepay}
                         >
                           <RefreshCw size={13} className={isSyncingSepay ? 'animate-spin' : ''} />
