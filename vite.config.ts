@@ -8,8 +8,16 @@ export default defineConfig({
     port: 3000,
     open: true,
   },
+  esbuild: {
+    // Loại bỏ toàn bộ chú thích nội bộ để tránh lộ cấu trúc code
+    legalComments: 'none',
+    // Loại bỏ lệnh console.log và debugger trong bản build production
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+  },
   build: {
+    // Tuyệt đối không sinh Source Maps (.map) -> Trình duyệt không thể giải ngược ra code gốc TypeScript
     sourcemap: false,
+    minify: 'esbuild',
     chunkSizeWarningLimit: 750,
     rollupOptions: {
       output: {

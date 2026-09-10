@@ -219,7 +219,7 @@ export default function App() {
         </Suspense>
       )}
 
-      {/* Real Donation Gateway Modal (VietQR / MoMo / Ko-fi / Supporters Wall) */}
+      {/* Real Donation Gateway Modal (VietQR / MoMo / Ko-fi) */}
       <Suspense fallback={null}>
         <DonationModal />
       </Suspense>

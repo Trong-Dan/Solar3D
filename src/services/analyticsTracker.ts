@@ -52,12 +52,14 @@ export interface BankAccountSettings {
 const STORAGE_KEY_DONATIONS = 'ss3d_real_donations_v2';
 const STORAGE_KEY_EVENTS = 'ss3d_analytics_events_v2';
 const STORAGE_KEY_BANK_SETTINGS = 'ss3d_bank_settings_v2';
+const STORAGE_KEY_SEPAY_API_KEY = 'ss3d_sepay_api_key_v2';
 
 type Listener = () => void;
 
 class AnalyticsTracker {
   private donations: RealDonation[] = [];
   private events: TrackingEvent[] = [];
+  private sepayApiKey: string = '';
   private bankSettings: BankAccountSettings = {
     bankId: BANKING_CONFIG.bankId,
     bankName: BANKING_CONFIG.bankName,
@@ -92,6 +94,11 @@ class AnalyticsTracker {
       const savedBank = localStorage.getItem(STORAGE_KEY_BANK_SETTINGS);
       if (savedBank) {
         this.bankSettings = { ...this.bankSettings, ...JSON.parse(savedBank) };
+      }
+
+      const savedSepayKey = localStorage.getItem(STORAGE_KEY_SEPAY_API_KEY);
+      if (savedSepayKey) {
+        this.sepayApiKey = savedSepayKey;
       }
     } catch {
       this.donations = [];
@@ -238,11 +245,126 @@ class AnalyticsTracker {
     this.notifyListeners();
   }
 
-  /** Lấy danh sách vinh danh người ủng hộ đã xác nhận (hiển thị công khai trong Modal) */
-  public getPublicSupporters(limit = 10): RealDonation[] {
-    return this.donations
-      .filter((d) => d.status === 'confirmed' && d.isPublic !== false)
-      .slice(0, limit);
+  /** Lấy SePay API Token */
+  public getSepayApiKey(): string {
+    return this.sepayApiKey;
+  }
+
+  /** Lưu SePay API Token */
+  public setSepayApiKey(key: string) {
+    this.sepayApiKey = key.trim();
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY_SEPAY_API_KEY, this.sepayApiKey);
+    }
+    this.notifyListeners();
+  }
+
+  /** Tự động đồng bộ giao dịch chuyển khoản từ ngân hàng MB Bank qua SePay */
+  public async syncFromSepay(overrideKey?: string): Promise<{ success: boolean; count: number; message: string }> {
+    const key = (overrideKey !== undefined ? overrideKey : this.sepayApiKey).trim();
+    if (!key) {
+      return {
+        success: false,
+        count: 0,
+        message: 'Chưa cấu hình SePay API Token. Vui lòng vào Cấu hình & Bảo mật để dán Token.',
+      };
+    }
+
+    try {
+      const accountNo = this.bankSettings.accountNo.trim();
+      const url = `https://my.sepay.vn/userapi/transactions/list?limit=50${accountNo ? `&account_number=${encodeURIComponent(accountNo)}` : ''}`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          return { success: false, count: 0, message: 'API Token SePay không hợp lệ hoặc đã hết hạn.' };
+        }
+        return { success: false, count: 0, message: `Lỗi kết nối máy chủ SePay (Mã HTTP: ${response.status})` };
+      }
+
+      const data = await response.json();
+      const transactions = data.transactions;
+
+      if (!Array.isArray(transactions)) {
+        return { success: false, count: 0, message: 'Phản hồi từ SePay không chứa danh sách giao dịch hợp lệ.' };
+      }
+
+      let addedCount = 0;
+      for (const tx of transactions) {
+        const amountIn = parseFloat(tx.amount_in || '0');
+        // Chỉ lấy tiền vào tài khoản (ủng hộ/chuyển khoản)
+        if (amountIn <= 0) continue;
+
+        const uniqueId = `sepay_${tx.id}`;
+        const refNumber = (tx.reference_number || String(tx.id)).trim();
+
+        // Tránh trùng lặp với giao dịch đã có
+        const exists = this.donations.some(
+          (d) => d.id === uniqueId || (d.transactionRef && d.transactionRef === refNumber)
+        );
+        if (exists) continue;
+
+        let txTimestamp = Date.now();
+        if (tx.transaction_date) {
+          const parsed = new Date(tx.transaction_date.replace(' ', 'T')).getTime();
+          if (!isNaN(parsed)) txTimestamp = parsed;
+        }
+
+        const formattedDate = new Date(txTimestamp).toLocaleDateString('vi-VN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+
+        const content = (tx.transaction_content || '').trim();
+        const donorName = content ? content : `Chuyển khoản ${tx.bank_brand_name || 'MB Bank'}`;
+
+        const newDonation: RealDonation = {
+          id: uniqueId,
+          donorName,
+          amount: Math.round(amountIn),
+          message: content || 'Chuyển khoản ủng hộ qua mã QR MB Bank',
+          method: 'vietqr',
+          status: 'confirmed',
+          timestamp: txTimestamp,
+          formattedDate,
+          transactionRef: refNumber,
+          isPublic: true,
+        };
+
+        this.donations.unshift(newDonation);
+        addedCount++;
+      }
+
+      if (addedCount > 0) {
+        this.donations.sort((a, b) => b.timestamp - a.timestamp);
+        this.saveDonations();
+        this.notifyListeners();
+      }
+
+      return {
+        success: true,
+        count: addedCount,
+        message: addedCount > 0
+          ? `Đồng bộ thành công ${addedCount} khoản chuyển khoản mới từ MB Bank!`
+          : 'Đã kết nối MB Bank qua SePay: Hiện chưa có khoản chuyển tiền mới nào.',
+      };
+    } catch {
+      return {
+        success: false,
+        count: 0,
+        message: 'Lỗi mạng khi kết nối SePay. Vui lòng kiểm tra lại đường truyền.',
+      };
+    }
   }
 
   // ==========================================

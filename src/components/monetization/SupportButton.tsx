@@ -39,7 +39,7 @@ export function SupportButton({ variant = 'full', className = '' }: SupportButto
       <div className="support-card-text">
         <div className="support-card-title">Ủng hộ dự án Hệ Mặt Trời 3D</div>
         <div className="support-card-desc">
-          Dự án phi lợi nhuận phục vụ cộng đồng thiên văn. Mọi sự ủng hộ (VietQR, MoMo, Ko-fi) đều được vinh danh trên Bảng Vàng Thiên Hà!
+          Dự án phi lợi nhuận phục vụ cộng đồng thiên văn. Mọi sự ủng hộ (VietQR, MoMo, Ko-fi) giúp duy trì máy chủ và phát triển thêm tính năng mới!
         </div>
       </div>
       <button className="support-card-cta" onClick={handleSupport}>

@@ -32,6 +32,7 @@ import {
   ShieldCheck,
   FileSpreadsheet,
   FileJson,
+  RefreshCw,
 } from 'lucide-react';
 import { analyticsTracker, RealDonation } from '../../services/analyticsTracker';
 import { MONETIZATION_CONFIG, BANKING_CONFIG } from '../../config/monetization';
@@ -74,6 +75,12 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'pending'>('all');
 
+  // SePay Auto-Sync State
+  const [sepayApiKey, setSepayApiKey] = useState(analyticsTracker.getSepayApiKey());
+  const [isSyncingSepay, setIsSyncingSepay] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<{ success: boolean; message: string } | null>(null);
+  const [sepayKeySaved, setSepayKeySaved] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check default PIN status and subscribe to updates
@@ -86,6 +93,39 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
     });
     return () => unsubscribe();
   }, []);
+
+  // Tự động đồng bộ từ SePay khi Admin vào xem tab sao kê nếu đã có Token
+  useEffect(() => {
+    if (activeTab === 'ledger' && analyticsTracker.getSepayApiKey()) {
+      handleSyncSepay();
+    }
+  }, [activeTab]);
+
+  const handleSyncSepay = async () => {
+    if (isSyncingSepay) return;
+    setIsSyncingSepay(true);
+    setSyncFeedback(null);
+    try {
+      const res = await analyticsTracker.syncFromSepay();
+      setSyncFeedback({ success: res.success, message: res.message });
+      setTimeout(() => setSyncFeedback(null), 6000);
+    } catch {
+      setSyncFeedback({ success: false, message: 'Đồng bộ thất bại, vui lòng kiểm tra kết nối mạng.' });
+      setTimeout(() => setSyncFeedback(null), 6000);
+    } finally {
+      setIsSyncingSepay(false);
+    }
+  };
+
+  const handleSaveSepayKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    analyticsTracker.setSepayApiKey(sepayApiKey);
+    setSepayKeySaved(true);
+    setTimeout(() => setSepayKeySaved(false), 2500);
+    if (sepayApiKey.trim()) {
+      handleSyncSepay();
+    }
+  };
 
   const handleExportCSV = () => {
     const csvData = analyticsTracker.exportDonationsCSV();
@@ -569,11 +609,51 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                       <option value="confirmed">Đã nhận tiền</option>
                       <option value="pending">Chờ đối soát</option>
                     </select>
+
+                    <button
+                      type="button"
+                      className={`admin-btn-sync ${isSyncingSepay ? 'syncing' : ''}`}
+                      onClick={handleSyncSepay}
+                      disabled={isSyncingSepay}
+                      title="Tự động nạp các khoản chuyển tiền mới từ MB Bank qua SePay"
+                    >
+                      <RefreshCw size={13} className={isSyncingSepay ? 'animate-spin' : ''} />
+                      <span>{isSyncingSepay ? 'Đang đồng bộ...' : 'Đồng bộ SePay'}</span>
+                    </button>
                   </div>
                 </div>
 
+                {syncFeedback && (
+                  <div className={`admin-sync-feedback-banner ${syncFeedback.success ? 'success' : 'warning'}`}>
+                    <span>{syncFeedback.message}</span>
+                  </div>
+                )}
+
                 {filteredDonations.length === 0 ? (
-                  <div className="admin-empty-state">Không tìm thấy giao dịch nào khớp với bộ lọc.</div>
+                  <div className="admin-empty-state-card">
+                    <div className="empty-state-title">Chưa có giao dịch quyên góp nào</div>
+                    {analyticsTracker.getSepayApiKey() ? (
+                      <p className="empty-state-desc">
+                        Hệ thống đã kết nối SePay. Nhấn <strong>"Đồng bộ SePay"</strong> ở trên hoặc đợi khi có người quét mã VietQR chuyển tiền vào tài khoản MB Bank <code>{bankSettings.accountNo}</code>, giao dịch sẽ tự động hiện tại đây.
+                      </p>
+                    ) : (
+                      <div className="empty-state-sepay-guide">
+                        <p className="empty-state-desc">
+                          ⚡ <strong>Tự động hiện thông tin người chuyển khoản qua QR:</strong>
+                          <br />
+                          Để hệ thống tự động bắt biến động số dư tài khoản MB Bank ({bankSettings.accountNo}) mà không cần người dùng ghi danh, hãy kết nối <strong>SePay API Token</strong> (miễn phí).
+                        </p>
+                        <button
+                          type="button"
+                          className="admin-btn-goto-settings"
+                          onClick={() => setActiveTab('settings')}
+                        >
+                          <Settings size={14} />
+                          <span>Cấu hình SePay Auto-Sync ngay</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="admin-table-wrap">
                     <table className="admin-data-table">
@@ -742,6 +822,81 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                   </form>
                 </div>
 
+                {/* SePay Auto-Sync Integration Card */}
+                <div className="admin-panel-card">
+                  <div className="admin-card-header">
+                    <div>
+                      <h3 className="admin-card-title">TỰ ĐỘNG ĐỒNG BỘ GIAO DỊCH VIETQR (SEPAY.VN API)</h3>
+                      <p className="admin-card-subtitle">
+                        Tự động ghi nhận khi người dùng quét mã VietQR MB Bank mà không cần ghi danh
+                      </p>
+                    </div>
+                    <a
+                      href="https://sepay.vn"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="admin-link-anchor"
+                      style={{ fontSize: '0.82rem' }}
+                    >
+                      <span>Mở SePay.vn</span>
+                      <ExternalLink size={12} />
+                    </a>
+                  </div>
+
+                  <div className="admin-sepay-guide-steps">
+                    <div className="sepay-step-item">
+                      <span className="step-badge">1</span>
+                      <span>Đăng ký tài khoản miễn phí tại <a href="https://sepay.vn" target="_blank" rel="noopener noreferrer">sepay.vn</a>.</span>
+                    </div>
+                    <div className="sepay-step-item">
+                      <span className="step-badge">2</span>
+                      <span>Thêm tài khoản <strong>MB Bank ({bankSettings.accountNo} - {bankSettings.accountName})</strong> vào SePay.</span>
+                    </div>
+                    <div className="sepay-step-item">
+                      <span className="step-badge">3</span>
+                      <span>Vào <em>Tích hợp web &rarr; API Token</em>, sao chép API Token dán vào ô bên dưới:</span>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSaveSepayKey} className="admin-settings-form" style={{ marginTop: '14px' }}>
+                    <div className="admin-form-group">
+                      <label>SePay API Token</label>
+                      <input
+                        type="password"
+                        value={sepayApiKey}
+                        onChange={(e) => setSepayApiKey(e.target.value)}
+                        placeholder="Dán mã API Token từ SePay.vn"
+                        className="admin-form-input font-mono"
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button type="submit" className="admin-btn-save">
+                        {sepayKeySaved ? <Check size={16} /> : <Save size={16} />}
+                        <span>{sepayKeySaved ? 'Đã lưu Token!' : 'Lưu SePay API Token'}</span>
+                      </button>
+
+                      {sepayApiKey.trim() && (
+                        <button
+                          type="button"
+                          className={`admin-btn-sync ${isSyncingSepay ? 'syncing' : ''}`}
+                          onClick={handleSyncSepay}
+                          disabled={isSyncingSepay}
+                        >
+                          <RefreshCw size={13} className={isSyncingSepay ? 'animate-spin' : ''} />
+                          <span>{isSyncingSepay ? 'Đang kiểm tra...' : 'Kiểm tra & Đồng bộ ngay'}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {syncFeedback && (
+                      <div className={`admin-sync-feedback-banner ${syncFeedback.success ? 'success' : 'warning'}`} style={{ marginTop: '10px' }}>
+                        <span>{syncFeedback.message}</span>
+                      </div>
+                    )}
+                  </form>
+                </div>
+
                 {/* Security Settings & Change PIN & Backup */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   {/* Change PIN Card */}
@@ -901,17 +1056,6 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                     <option value="pending">Chờ đối soát</option>
                   </select>
                 </div>
-              </div>
-
-              <div className="admin-form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={manualIsPublic}
-                    onChange={(e) => setManualIsPublic(e.target.checked)}
-                  />
-                  <span>Vinh danh trên Bảng Vàng công khai của trang web</span>
-                </label>
               </div>
 
               <div className="admin-form-group">
