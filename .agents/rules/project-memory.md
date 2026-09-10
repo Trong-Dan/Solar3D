@@ -19,3 +19,11 @@ globs: **/*
 - Trong `ShowcaseView`, sân khấu 3D quay cận cảnh chiếm nửa phải màn hình.
 - Component `InfoPanel` khi ở trạng thái đóng (`!isInfoPanelOpen`) và đang ở chế độ Showcase (`viewMode === 'showcase'`) BẮT BUỘC trả về `null` để không có nút capsule đè lên quả cầu 3D.
 - Chỉ hiển thị nút "Kéo ra" trong chế độ Khám phá 3D tự do (`freeExplore`).
+
+## Quy Tắc Phản Xạ Bắt Buộc (Reflex Rule)
+- **Tự động Double-Check 100%:** Sau bất kỳ tác vụ nào, Antigravity BẮT BUỘC tự giác kiểm tra lại:
+  1. Vòng lặp render React (`useEffect`, `useCallback`, dependency array).
+  2. Race conditions, cờ khóa `useRef` và timeout mạng (`AbortController`).
+  3. Xử lý lỗi API (401, 403, 404, 429 Rate Limit, 502) và bảo vệ CORS.
+  4. Biên dịch sạch sẽ: Chạy `npx tsc --noEmit` (0 lỗi) và `npm run build` (exit code 0).
+  5. Đẩy commit lên Git an toàn.
