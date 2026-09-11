@@ -99,7 +99,7 @@ export function generateRandomHex(bytes = 32) {
 // ── Default fallbacks cho giai đoạn khởi tạo ban đầu trước khi đặt env var trên Vercel ──
 export const DEFAULT_PIN_SALT = 'ss3d_solar_salt_pbkdf2_prod_2026';
 export const DEFAULT_SESSION_SECRET = 'ss3d_session_secret_hmac_prod_2026_default_key_replace_me';
-export const DEFAULT_PIN_HASH = hashPinPBKDF2('888888', DEFAULT_PIN_SALT);
+export const DEFAULT_PIN_HASH = '280bd00595b898bcf71110719df3fb1d1274b5e7ca8c03ac278491b50176aa935e0ed7a5795728e3ba58d389aed913c169cc3e1bb99ba6991de5c5fce7d99897';
 
 /**
  * Lấy cấu hình bảo mật hiện hành từ environment variables hoặc fallback

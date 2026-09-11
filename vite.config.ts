@@ -1,4 +1,4 @@
-import { defineConfig, Plugin } from 'vite'
+import { defineConfig, Plugin, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -72,8 +72,12 @@ function adminApiDevPlugin(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [tailwindcss(), react(), adminApiDevPlugin()],
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  Object.assign(process.env, env);
+
+  return {
+    plugins: [tailwindcss(), react(), adminApiDevPlugin()],
   server: {
     port: 3000,
     open: true,
@@ -106,4 +110,5 @@ export default defineConfig({
       },
     },
   },
-})
+};
+});
