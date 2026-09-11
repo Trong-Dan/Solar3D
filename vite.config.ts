@@ -8,7 +8,7 @@ function adminApiDevPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url || '';
-        if (!url.startsWith('/api/admin/')) {
+        if (!url.startsWith('/api/admin/') && !url.startsWith('/api/sepay')) {
           return next();
         }
 
@@ -26,10 +26,14 @@ function adminApiDevPlugin(): Plugin {
           }
         }
 
+        const parsedUrl = new URL(url, 'http://localhost:3000');
+        const query = Object.fromEntries(parsedUrl.searchParams.entries());
+
         const adaptedReq: any = {
           method: req.method,
           headers: req.headers,
           url: req.url,
+          query,
           body,
           socket: req.socket,
         };
@@ -49,7 +53,10 @@ function adminApiDevPlugin(): Plugin {
         };
 
         try {
-          if (url.startsWith('/api/admin/login')) {
+          if (url.startsWith('/api/sepay')) {
+            const mod = await import('./api/sepay.js');
+            return mod.default(adaptedReq, adaptedRes);
+          } else if (url.startsWith('/api/admin/login')) {
             const mod = await import('./api/admin/login.js');
             return mod.default(adaptedReq, adaptedRes);
           } else if (url.startsWith('/api/admin/verify')) {
@@ -78,17 +85,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [tailwindcss(), react(), adminApiDevPlugin()],
-  server: {
-    port: 3000,
-    open: true,
-    proxy: {
-      '/api/sepay': {
-        target: 'https://userapi.sepay.vn',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/sepay/, '/v2/transactions'),
-      },
+    server: {
+      port: 3000,
+      open: true,
     },
-  },
   esbuild: {
     // Loại bỏ toàn bộ chú thích nội bộ để tránh lộ cấu trúc code
     legalComments: 'none',
