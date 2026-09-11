@@ -37,10 +37,9 @@ import {
 import { analyticsTracker, RealDonation } from '../../services/analyticsTracker';
 import { MONETIZATION_CONFIG, BANKING_CONFIG } from '../../config/monetization';
 import {
-  PIN_SALT,
-  STORAGE_PIN_HASH,
-  sha256,
+  changeAdminPinOnServer,
   isDefaultPinInUse,
+  type ChangePinResponse,
 } from '../../utils/security';
 
 interface AdminDashboardProps {
@@ -68,18 +67,20 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
   const [manualRef, setManualRef] = useState('');
 
   // PIN change
+  const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [pinChangeMessage, setPinChangeMessage] = useState<string | null>(null);
+  const [pinChangeResult, setPinChangeResult] = useState<ChangePinResponse | null>(null);
+  const [isChangingPin, setIsChangingPin] = useState(false);
 
   // Filter in Ledger
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'pending'>('all');
 
   // SePay Auto-Sync State
-  const [sepayApiKey, setSepayApiKey] = useState(analyticsTracker.getSepayApiKey());
   const [isSyncingSepay, setIsSyncingSepay] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<{ success: boolean; message: string } | null>(null);
-  const [sepayKeySaved, setSepayKeySaved] = useState(false);
+  const [isSepayConfigured, setIsSepayConfigured] = useState(analyticsTracker.isSepayConfigured());
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -96,17 +97,14 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
 
   const isSyncingRef = useRef(false);
 
-  const handleSyncSepay = async (customKey?: string) => {
+  const handleSyncSepay = async () => {
     if (isSyncingRef.current) return;
     isSyncingRef.current = true;
     setIsSyncingSepay(true);
     setSyncFeedback(null);
-    const keyToUse = (typeof customKey === 'string' ? customKey : sepayApiKey).trim();
-    if (keyToUse) {
-      analyticsTracker.setSepayApiKey(keyToUse);
-    }
     try {
-      const res = await analyticsTracker.syncFromSepay(keyToUse);
+      const res = await analyticsTracker.syncFromSepay();
+      setIsSepayConfigured(analyticsTracker.isSepayConfigured());
       setSyncFeedback({ success: res.success, message: res.message });
       setTimeout(() => setSyncFeedback(null), 6000);
     } catch {
@@ -118,24 +116,14 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
     }
   };
 
-  // Chỉ đồng bộ 1 lần khi mở Admin (nếu đã có SePay API Token), tuyệt đối không loop
+  // Chỉ đồng bộ 1 lần khi mở Admin, tuyệt đối không loop
   useEffect(() => {
-    const key = analyticsTracker.getSepayApiKey();
-    if (key && !isSyncingRef.current) {
-      handleSyncSepay(key);
+    if (!isSyncingRef.current) {
+      handleSyncSepay();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSaveSepayKey = (e: React.FormEvent) => {
-    e.preventDefault();
-    analyticsTracker.setSepayApiKey(sepayApiKey);
-    setSepayKeySaved(true);
-    setTimeout(() => setSepayKeySaved(false), 2500);
-    if (sepayApiKey.trim()) {
-      handleSyncSepay();
-    }
-  };
 
   const handleExportCSV = () => {
     const csvData = analyticsTracker.exportDonationsCSV();
@@ -212,17 +200,35 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
 
   const handleChangePin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentPin.trim()) {
+      setPinChangeMessage('Vui lòng nhập mã PIN hiện tại!');
+      return;
+    }
     if (!newPin.trim() || newPin.trim().length < 4) {
-      setPinChangeMessage('Mã PIN phải có ít nhất 4 ký tự!');
+      setPinChangeMessage('Mã PIN mới phải có ít nhất 4 ký tự!');
       return;
     }
 
-    const newHash = await sha256(PIN_SALT + newPin.trim());
-    localStorage.setItem(STORAGE_PIN_HASH, newHash);
-    setNewPin('');
-    setHasDefaultPin(false);
-    setPinChangeMessage('✅ Đã đổi mã PIN thành công! Hãy ghi nhớ mã mới này.');
-    setTimeout(() => setPinChangeMessage(null), 4000);
+    setIsChangingPin(true);
+    setPinChangeMessage(null);
+    setPinChangeResult(null);
+
+    try {
+      const res = await changeAdminPinOnServer(currentPin.trim(), newPin.trim());
+      if (res.success) {
+        setHasDefaultPin(false);
+        setPinChangeResult(res);
+        setCurrentPin('');
+        setNewPin('');
+        setPinChangeMessage(res.message || '✅ Đã tạo hash mã PIN mới thành công!');
+      } else {
+        setPinChangeMessage(`❌ ${res.error || 'Đổi mã PIN không thành công'}`);
+      }
+    } catch {
+      setPinChangeMessage('❌ Lỗi kết nối khi đổi mã PIN. Vui lòng thử lại.');
+    } finally {
+      setIsChangingPin(false);
+    }
   };
 
   const getMethodBadge = (method: RealDonation['method']) => {
@@ -299,17 +305,15 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
           </div>
 
           <div className="admin-header-actions">
-            {sepayApiKey.trim() && (
-              <button
-                className={`admin-btn-sync ${isSyncingSepay ? 'syncing' : ''}`}
-                onClick={() => handleSyncSepay(sepayApiKey)}
-                disabled={isSyncingSepay}
-                title="Đồng bộ ngay các giao dịch mới nhất từ SePay (MB Bank)"
-              >
-                <RefreshCw size={14} className={isSyncingSepay ? 'animate-spin' : ''} />
-                <span>{isSyncingSepay ? 'Đang kiểm tra...' : 'Đồng bộ SePay'}</span>
-              </button>
-            )}
+            <button
+              className={`admin-btn-sync ${isSyncingSepay ? 'syncing' : ''}`}
+              onClick={() => handleSyncSepay()}
+              disabled={isSyncingSepay}
+              title="Đồng bộ ngay các giao dịch mới nhất từ SePay (MB Bank)"
+            >
+              <RefreshCw size={14} className={isSyncingSepay ? 'animate-spin' : ''} />
+              <span>{isSyncingSepay ? 'Đang kiểm tra...' : 'Đồng bộ SePay'}</span>
+            </button>
             <button
               className="admin-btn-add-donation"
               onClick={() => setIsAddModalOpen(true)}
@@ -469,22 +473,20 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                     </p>
                   </div>
                   <div className="admin-card-header-actions">
-                    {sepayApiKey.trim() && (
-                      <button
-                        className="admin-btn-mini-add"
-                        onClick={() => handleSyncSepay(sepayApiKey)}
-                        disabled={isSyncingSepay}
-                        title="Đồng bộ SePay"
-                        style={{
-                          background: 'rgba(2, 132, 199, 0.2)',
-                          borderColor: 'rgba(56, 189, 248, 0.4)',
-                          color: '#38bdf8',
-                        }}
-                      >
-                        <RefreshCw size={13} className={isSyncingSepay ? 'animate-spin' : ''} />
-                        <span>{isSyncingSepay ? 'Đang kiểm tra...' : 'Đồng bộ SePay'}</span>
-                      </button>
-                    )}
+                    <button
+                      className="admin-btn-mini-add"
+                      onClick={() => handleSyncSepay()}
+                      disabled={isSyncingSepay}
+                      title="Đồng bộ SePay"
+                      style={{
+                        background: 'rgba(2, 132, 199, 0.2)',
+                        borderColor: 'rgba(56, 189, 248, 0.4)',
+                        color: '#38bdf8',
+                      }}
+                    >
+                      <RefreshCw size={13} className={isSyncingSepay ? 'animate-spin' : ''} />
+                      <span>{isSyncingSepay ? 'Đang kiểm tra...' : 'Đồng bộ SePay'}</span>
+                    </button>
                     <button
                       className="admin-btn-mini-add"
                       onClick={() => setIsAddModalOpen(true)}
@@ -671,7 +673,7 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                     <button
                       type="button"
                       className={`admin-btn-sync ${isSyncingSepay ? 'syncing' : ''}`}
-                      onClick={() => handleSyncSepay(sepayApiKey)}
+                      onClick={() => handleSyncSepay()}
                       disabled={isSyncingSepay}
                       title="Tự động nạp các khoản chuyển tiền mới từ MB Bank qua SePay"
                     >
@@ -690,25 +692,25 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                 {filteredDonations.length === 0 ? (
                   <div className="admin-empty-state-card">
                     <div className="empty-state-title">Chưa có giao dịch quyên góp nào</div>
-                    {analyticsTracker.getSepayApiKey() ? (
-                      <p className="empty-state-desc">
-                        Hệ thống đã kết nối SePay. Nhấn <strong>"Đồng bộ SePay"</strong> ở trên hoặc đợi khi có người quét mã VietQR chuyển tiền vào tài khoản MB Bank <code>{bankSettings.accountNo}</code>, giao dịch sẽ tự động hiện tại đây.
-                      </p>
-                    ) : (
+                    <p className="empty-state-desc">
+                      Hệ thống sẽ tự động đồng bộ giao dịch từ MB Bank khi SePay API Token được cấu hình trên server. Nhấn <strong>"Đồng bộ SePay"</strong> ở trên hoặc đợi khi có người quét mã VietQR chuyển tiền vào tài khoản MB Bank <code>{bankSettings.accountNo}</code>, giao dịch sẽ tự động hiện tại đây.
+                    </p>
+                    {!isSepayConfigured && (
                       <div className="empty-state-sepay-guide">
                         <p className="empty-state-desc">
                           ⚡ <strong>Tự động hiện thông tin người chuyển khoản qua QR:</strong>
                           <br />
-                          Để hệ thống tự động bắt biến động số dư tài khoản MB Bank ({bankSettings.accountNo}) mà không cần người dùng ghi danh, hãy kết nối <strong>SePay API Token</strong> (miễn phí).
+                          Để hệ thống tự động bắt biến động số dư tài khoản MB Bank ({bankSettings.accountNo}), hãy cấu hình <strong>SEPAY_API_TOKEN</strong> trên Vercel Dashboard → Settings → Environment Variables.
                         </p>
-                        <button
-                          type="button"
+                        <a
+                          href="https://sepay.vn"
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="admin-btn-goto-settings"
-                          onClick={() => setActiveTab('settings')}
                         >
                           <Settings size={14} />
-                          <span>Cấu hình SePay Auto-Sync ngay</span>
-                        </button>
+                          <span>Mở SePay.vn để lấy API Token</span>
+                        </a>
                       </div>
                     )}
                   </div>
@@ -880,13 +882,13 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                   </form>
                 </div>
 
-                {/* SePay Auto-Sync Integration Card */}
+                {/* SePay Server-Side Configuration Guide */}
                 <div className="admin-panel-card">
                   <div className="admin-card-header">
                     <div>
-                      <h3 className="admin-card-title">TỰ ĐỘNG ĐỒNG BỘ GIAO DỊCH VIETQR (SEPAY.VN API)</h3>
+                      <h3 className="admin-card-title">TỰ ĐỘNG ĐỒNG BỘ GIAO DỊCH VIETQR (SEPAY.VN)</h3>
                       <p className="admin-card-subtitle">
-                        Tự động ghi nhận khi người dùng quét mã VietQR MB Bank mà không cần ghi danh
+                        SePay API Token được bảo mật trên server — cấu hình qua Vercel Environment Variables
                       </p>
                     </div>
                     <a
@@ -912,12 +914,18 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                     </div>
                     <div className="sepay-step-item">
                       <span className="step-badge">3</span>
-                      <span>Vào <em>Tích hợp web &rarr; API Access &rarr; Tạo API Token</em>, sao chép API Token dán vào ô bên dưới:</span>
+                      <span>Vào <em>Tích hợp web &rarr; API Access &rarr; Tạo API Token</em>, sao chép API Token.</span>
                     </div>
                     <div className="sepay-step-item">
                       <span className="step-badge">4</span>
                       <span>
-                        Cài đặt app <strong>SePay (trên Android)</strong> để đồng bộ biến động số dư từ App MB Bank (hoặc liên kết ngân hàng). Bạn có thể kiểm tra danh sách giao dịch SePay đã nhận tại{' '}
+                        Vào <strong>Vercel Dashboard → Settings → Environment Variables</strong>, thêm biến <code>SEPAY_API_TOKEN</code> với giá trị là API Token vừa sao chép. Sau đó redeploy.
+                      </span>
+                    </div>
+                    <div className="sepay-step-item">
+                      <span className="step-badge">5</span>
+                      <span>
+                        Cài đặt app <strong>SePay (trên Android)</strong> để đồng bộ biến động số dư từ App MB Bank. Kiểm tra tại{' '}
                         <a href="https://my.sepay.vn/transactions" target="_blank" rel="noopener noreferrer">
                           my.sepay.vn/transactions
                         </a>.
@@ -925,43 +933,26 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                     </div>
                   </div>
 
-                  <form onSubmit={handleSaveSepayKey} className="admin-settings-form" style={{ marginTop: '14px' }}>
-                    <div className="admin-form-group">
-                      <label>SePay API Token</label>
-                      <input
-                        type="password"
-                        value={sepayApiKey}
-                        onChange={(e) => setSepayApiKey(e.target.value)}
-                        placeholder="Dán mã API Token từ SePay.vn"
-                        className="admin-form-input font-mono"
-                      />
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginTop: '14px' }}>
+                    <button
+                      type="button"
+                      className={`admin-btn-sync ${isSyncingSepay ? 'syncing' : ''}`}
+                      onClick={() => handleSyncSepay()}
+                      disabled={isSyncingSepay}
+                    >
+                      <RefreshCw size={13} className={isSyncingSepay ? 'animate-spin' : ''} />
+                      <span>{isSyncingSepay ? 'Đang kiểm tra...' : 'Kiểm tra & Đồng bộ ngay'}</span>
+                    </button>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>
+                      {isSepayConfigured ? '✅ Server đã cấu hình SePay Token' : '⚠️ Chưa phát hiện SePay Token trên server'}
+                    </span>
+                  </div>
+
+                  {syncFeedback && (
+                    <div className={`admin-sync-feedback-banner ${syncFeedback.success ? 'success' : 'warning'}`} style={{ marginTop: '10px' }}>
+                      <span>{syncFeedback.message}</span>
                     </div>
-
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <button type="submit" className="admin-btn-save">
-                        {sepayKeySaved ? <Check size={16} /> : <Save size={16} />}
-                        <span>{sepayKeySaved ? 'Đã lưu Token!' : 'Lưu SePay API Token'}</span>
-                      </button>
-
-                      {sepayApiKey.trim() && (
-                        <button
-                          type="button"
-                          className={`admin-btn-sync ${isSyncingSepay ? 'syncing' : ''}`}
-                          onClick={() => handleSyncSepay(sepayApiKey)}
-                          disabled={isSyncingSepay}
-                        >
-                          <RefreshCw size={13} className={isSyncingSepay ? 'animate-spin' : ''} />
-                          <span>{isSyncingSepay ? 'Đang kiểm tra...' : 'Kiểm tra & Đồng bộ ngay'}</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {syncFeedback && (
-                      <div className={`admin-sync-feedback-banner ${syncFeedback.success ? 'success' : 'warning'}`} style={{ marginTop: '10px' }}>
-                        <span>{syncFeedback.message}</span>
-                      </div>
-                    )}
-                  </form>
+                  )}
                 </div>
 
                 {/* Security Settings & Change PIN & Backup */}
@@ -979,24 +970,105 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
 
                     <form onSubmit={handleChangePin} className="admin-settings-form">
                       <div className="admin-form-group">
-                        <label>Mã PIN mới (Ít nhất 4 ký tự)</label>
+                        <label>Mã PIN hiện tại *</label>
+                        <input
+                          type="password"
+                          value={currentPin}
+                          onChange={(e) => setCurrentPin(e.target.value)}
+                          placeholder="Nhập mã PIN hiện tại (mặc định: 888888)"
+                          className="admin-form-input"
+                          maxLength={32}
+                          required
+                          disabled={isChangingPin}
+                        />
+                      </div>
+
+                      <div className="admin-form-group">
+                        <label>Mã PIN mới (Ít nhất 4 ký tự) *</label>
                         <input
                           type="password"
                           value={newPin}
                           onChange={(e) => setNewPin(e.target.value)}
                           placeholder="Nhập mã PIN riêng tư mới"
                           className="admin-form-input"
-                          maxLength={16}
+                          maxLength={32}
+                          required
+                          disabled={isChangingPin}
                         />
                       </div>
 
                       {pinChangeMessage && (
-                        <div className="admin-auth-info-banner">{pinChangeMessage}</div>
+                        <div
+                          className="admin-auth-info-banner"
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            fontSize: '0.85rem',
+                            lineHeight: '1.4',
+                            background: pinChangeResult?.success ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                            border: pinChangeResult?.success ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+                            color: pinChangeResult?.success ? '#34d399' : '#fca5a5',
+                          }}
+                        >
+                          {pinChangeMessage}
+                        </div>
                       )}
 
-                      <button type="submit" className="admin-btn-pin" disabled={!newPin.trim()}>
+                      {pinChangeResult?.newPinHash && (
+                        <div
+                          style={{
+                            padding: '12px',
+                            background: 'rgba(2, 132, 199, 0.12)',
+                            border: '1px solid rgba(56, 189, 248, 0.4)',
+                            borderRadius: '8px',
+                            fontSize: '0.82rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                          }}
+                        >
+                          <strong style={{ color: '#38bdf8' }}>Cập nhật mã hash này lên Vercel:</strong>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input
+                              type="text"
+                              readOnly
+                              value={pinChangeResult.newPinHash}
+                              className="admin-form-input font-mono text-xs"
+                              style={{ flex: 1, padding: '6px 10px', height: '32px' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(pinChangeResult.newPinHash || '');
+                                alert('Đã sao chép mã hash vào clipboard!');
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                background: '#0284c7',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              Sao chép hash
+                            </button>
+                          </div>
+                          <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', fontSize: '0.78rem' }}>
+                            Dán vào biến <code>ADMIN_PIN_HASH</code> trên Vercel Settings &rarr; Environment Variables &rarr; Redeploy để áp dụng vĩnh viễn trên server.
+                          </p>
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        className="admin-btn-pin"
+                        disabled={isChangingPin || !currentPin.trim() || !newPin.trim()}
+                      >
                         <Key size={16} />
-                        <span>Cập Nhật Mã PIN Bí Mật</span>
+                        <span>{isChangingPin ? 'Đang tạo hash...' : 'Cập Nhật Mã PIN Bí Mật'}</span>
                       </button>
                     </form>
                   </div>
@@ -1049,6 +1121,8 @@ export function AdminDashboard({ onClose, onLogout }: AdminDashboardProps) {
                       <li>✅ Tự động khóa 15 phút nếu nhập sai mã PIN quá 5 lần</li>
                       <li>✅ Nút mở quản trị được ẩn khỏi giao diện công khai của người dùng</li>
                       <li>✅ Dữ liệu tài khoản nhận tiền chuyển thẳng vào ngân hàng của bạn</li>
+                      <li>✅ SePay API Token được bảo mật trên server (Vercel Env Var) — không lộ ra frontend</li>
+                      <li>✅ CORS chỉ cho phép domain chính thức gọi API proxy</li>
                       <li>ℹ️ Link affiliate đọc từ file mã nguồn <code>src/config/monetization.ts</code></li>
                     </ul>
                   </div>

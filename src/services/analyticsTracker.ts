@@ -52,14 +52,13 @@ export interface BankAccountSettings {
 const STORAGE_KEY_DONATIONS = 'ss3d_real_donations_v2';
 const STORAGE_KEY_EVENTS = 'ss3d_analytics_events_v2';
 const STORAGE_KEY_BANK_SETTINGS = 'ss3d_bank_settings_v2';
-const STORAGE_KEY_SEPAY_API_KEY = 'ss3d_sepay_api_key_v2';
 
 type Listener = () => void;
 
 class AnalyticsTracker {
   private donations: RealDonation[] = [];
   private events: TrackingEvent[] = [];
-  private sepayApiKey: string = '';
+  private sepayConfigured: boolean = false;
   private bankSettings: BankAccountSettings = {
     bankId: BANKING_CONFIG.bankId,
     bankName: BANKING_CONFIG.bankName,
@@ -94,11 +93,6 @@ class AnalyticsTracker {
       const savedBank = localStorage.getItem(STORAGE_KEY_BANK_SETTINGS);
       if (savedBank) {
         this.bankSettings = { ...this.bankSettings, ...JSON.parse(savedBank) };
-      }
-
-      const savedSepayKey = localStorage.getItem(STORAGE_KEY_SEPAY_API_KEY);
-      if (savedSepayKey) {
-        this.sepayApiKey = savedSepayKey;
       }
     } catch {
       this.donations = [];
@@ -245,31 +239,16 @@ class AnalyticsTracker {
     this.notifyListeners();
   }
 
-  /** Lấy SePay API Token */
-  public getSepayApiKey(): string {
-    return this.sepayApiKey;
+  /** Kiểm tra SePay đã được cấu hình trên server chưa */
+  public isSepayConfigured(): boolean {
+    return this.sepayConfigured;
   }
 
-  /** Lưu SePay API Token */
-  public setSepayApiKey(key: string) {
-    this.sepayApiKey = key.trim();
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY_SEPAY_API_KEY, this.sepayApiKey);
-    }
-    this.notifyListeners();
-  }
-
-  /** Tự động đồng bộ giao dịch chuyển khoản từ ngân hàng MB Bank qua SePay */
-  public async syncFromSepay(overrideKey?: string): Promise<{ success: boolean; count: number; message: string }> {
-    const key = (typeof overrideKey === 'string' ? overrideKey : this.sepayApiKey).trim();
-    if (!key) {
-      return {
-        success: false,
-        count: 0,
-        message: 'Chưa cấu hình SePay API Token. Vui lòng vào Cấu hình & Bảo mật để dán Token.',
-      };
-    }
-
+  /** Tự động đồng bộ giao dịch chuyển khoản từ ngân hàng MB Bank qua SePay
+   *  SePay API Token được quản lý an toàn trên server (Vercel Environment Variable).
+   *  Client KHÔNG gửi và KHÔNG biết token — chỉ gọi proxy /api/sepay.
+   */
+  public async syncFromSepay(): Promise<{ success: boolean; count: number; message: string }> {
     try {
       const params = 'per_page=50';
       const proxyUrl = `/api/sepay?${params}`;
@@ -278,40 +257,22 @@ class AnalyticsTracker {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      let response: Response;
-      try {
-        response = await fetch(proxyUrl, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${key}`,
-            'Content-Type': 'application/json',
-          },
-          signal: controller.signal,
-        });
-      } catch (proxyErr: any) {
-        if (proxyErr?.name === 'AbortError') {
-          throw proxyErr;
-        }
-        // Dự phòng gọi trực tiếp tới SePay V2 nếu proxy không phản hồi
-        const directUrl = `https://userapi.sepay.vn/v2/transactions?${params}`;
-        response = await fetch(directUrl, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${key}`,
-            'Content-Type': 'application/json',
-          },
-          signal: controller.signal,
-        });
-      } finally {
-        clearTimeout(timeoutId);
-      }
+      const response = await fetch(proxyUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
+          this.sepayConfigured = false;
           return {
             success: false,
             count: 0,
-            message: 'API Token SePay không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại mã Token bạn đã copy trên SePay.vn.',
+            message: 'API Token SePay trên server không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra biến SEPAY_API_TOKEN trên Vercel Dashboard.',
           };
         }
         if (response.status === 429) {
@@ -322,16 +283,29 @@ class AnalyticsTracker {
           };
         }
         if (response.status === 404) {
+          this.sepayConfigured = false;
           return {
             success: false,
             count: 0,
             message: 'Không tìm thấy máy chủ đồng bộ /api/sepay. Hãy đảm bảo dự án đang chạy với lệnh "npm run dev".',
           };
         }
+        if (response.status === 500) {
+          this.sepayConfigured = false;
+          const errData = await response.json().catch(() => null);
+          return {
+            success: false,
+            count: 0,
+            message: errData?.hint || 'Chưa cấu hình SEPAY_API_TOKEN trên server. Vào Vercel Dashboard → Settings → Environment Variables để thêm.',
+          };
+        }
         return { success: false, count: 0, message: `Lỗi kết nối máy chủ SePay (Mã HTTP: ${response.status})` };
       }
 
       const data = await response.json();
+
+      // Đánh dấu SePay đã được cấu hình thành công trên server
+      this.sepayConfigured = true;
 
       // Kiểm tra phản hồi lỗi từ SePay (nếu có)
       if (data && (data.status === 'error' || data.error)) {
@@ -656,26 +630,108 @@ class AnalyticsTracker {
     return JSON.stringify(backupData, null, 2);
   }
 
-  /** Nhập khôi phục dữ liệu từ file JSON sao lưu */
+  /** Nhập khôi phục dữ liệu từ file JSON sao lưu với cơ chế kiểm duyệt chặt chẽ (Strict Validation & Anti-XSS) */
   public importBackupJSON(jsonString: string): { success: boolean; count: number; error?: string } {
+    if (!jsonString || typeof jsonString !== 'string') {
+      return { success: false, count: 0, error: 'Dữ liệu file không hợp lệ' };
+    }
+
+    // Giới hạn kích thước tối đa 5MB chống DoS bộ nhớ
+    if (jsonString.length > 5 * 1024 * 1024) {
+      return { success: false, count: 0, error: 'File sao lưu vượt quá dung lượng cho phép (tối đa 5MB)' };
+    }
+
     try {
       const parsed = JSON.parse(jsonString);
-      if (!Array.isArray(parsed.donations)) {
-        return { success: false, count: 0, error: 'File sao lưu không đúng cấu trúc (thiếu mảng donations)' };
+      if (!parsed || typeof parsed !== 'object') {
+        return { success: false, count: 0, error: 'Cấu trúc file JSON không hợp lệ' };
       }
 
-      this.donations = parsed.donations;
+      if (!Array.isArray(parsed.donations)) {
+        return { success: false, count: 0, error: 'File sao lưu không đúng cấu trúc (thiếu danh sách donations)' };
+      }
+
+      // Giới hạn tối đa 10,000 giao dịch chống tràn bộ nhớ localStorage
+      if (parsed.donations.length > 10000) {
+        return { success: false, count: 0, error: 'Số lượng giao dịch vượt quá giới hạn an toàn (tối đa 10,000)' };
+      }
+
+      const sanitize = (val: unknown, maxLen = 200): string => {
+        if (typeof val !== 'string') return '';
+        return val
+          .replace(/<[^>]*>/g, '') // Loại bỏ thẻ HTML chống XSS
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Loại bỏ control characters
+          .trim()
+          .slice(0, maxLen);
+      };
+
+      const VALID_METHODS = new Set(['vietqr', 'momo', 'kofi', 'manual']);
+      const VALID_STATUSES = new Set(['confirmed', 'pending']);
+      const validatedDonations: RealDonation[] = [];
+
+      for (let i = 0; i < parsed.donations.length; i++) {
+        const item = parsed.donations[i];
+        if (!item || typeof item !== 'object') continue;
+
+        const amount = Number(item.amount);
+        if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000_000) {
+          continue; // Bỏ qua số tiền không hợp lệ
+        }
+
+        const id = sanitize(item.id || `rec_${Date.now()}_${i}`, 64);
+        const donorName = sanitize(item.donorName || 'Nhà hảo tâm', 100);
+        const message = sanitize(item.message || '', 500);
+        const method = VALID_METHODS.has(item.method) ? (item.method as RealDonation['method']) : 'manual';
+        const status = VALID_STATUSES.has(item.status) ? (item.status as RealDonation['status']) : 'confirmed';
+
+        let timestamp = Number(item.timestamp);
+        if (!Number.isFinite(timestamp) || timestamp < 1577836800000 || timestamp > Date.now() + 86400000) {
+          timestamp = Date.now();
+        }
+
+        const formattedDate = sanitize(
+          item.formattedDate || new Date(timestamp).toLocaleDateString('vi-VN'),
+          50
+        );
+
+        const transactionRef = item.transactionRef ? sanitize(item.transactionRef, 100) : undefined;
+        const isPublic = typeof item.isPublic === 'boolean' ? item.isPublic : true;
+
+        validatedDonations.push({
+          id,
+          donorName,
+          amount: Math.round(amount),
+          message,
+          method,
+          status,
+          timestamp,
+          formattedDate,
+          transactionRef,
+          isPublic,
+        });
+      }
+
+      this.donations = validatedDonations;
       this.saveDonations();
 
-      if (parsed.bankSettings) {
-        this.bankSettings = { ...this.bankSettings, ...parsed.bankSettings };
+      // Kiểm duyệt cấu hình ngân hàng nếu có
+      if (parsed.bankSettings && typeof parsed.bankSettings === 'object') {
+        const bs = parsed.bankSettings;
+        this.bankSettings = {
+          bankId: sanitize(bs.bankId || this.bankSettings.bankId, 20).toUpperCase(),
+          bankName: sanitize(bs.bankName || this.bankSettings.bankName, 100),
+          accountNo: sanitize(bs.accountNo || this.bankSettings.accountNo, 50).replace(/[^\w-]/g, ''),
+          accountName: sanitize(bs.accountName || this.bankSettings.accountName, 100).toUpperCase(),
+          momoPhone: sanitize(bs.momoPhone || this.bankSettings.momoPhone, 20).replace(/[^\d+]/g, ''),
+          transferPrefix: sanitize(bs.transferPrefix || this.bankSettings.transferPrefix, 30),
+        };
         this.saveBankSettings();
       }
 
       this.notifyListeners();
       return { success: true, count: this.donations.length };
     } catch (err) {
-      return { success: false, count: 0, error: 'Không thể đọc nội dung file JSON' };
+      return { success: false, count: 0, error: 'Không thể đọc nội dung file JSON (lỗi cú pháp)' };
     }
   }
 }

@@ -1,12 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Lock, ShieldAlert, KeyRound, ArrowRight, X } from 'lucide-react';
 import {
-  sha256,
-  createAdminSession,
-  PIN_SALT,
-  STORAGE_PIN_HASH,
+  loginAdminWithPin,
   STORAGE_LOCKOUT_UNTIL,
-  STORAGE_FAILED_ATTEMPTS,
 } from '../../utils/security';
 
 interface AdminAuthGateProps {
@@ -48,31 +44,15 @@ export function AdminAuthGate({ onSuccess, onClose }: AdminAuthGateProps) {
     setError(null);
 
     try {
-      const inputHash = await sha256(PIN_SALT + pin.trim());
-      const storedHash = localStorage.getItem(STORAGE_PIN_HASH);
-
-      // Default fallback PIN is 888888 if admin hasn't set one yet
-      const defaultHash = await sha256(PIN_SALT + '888888');
-      const targetHash = storedHash || defaultHash;
-
-      if (inputHash === targetHash) {
-        // Success: Clear failed attempts, generate cryptographically signed session
-        localStorage.removeItem(STORAGE_FAILED_ATTEMPTS);
-        await createAdminSession(targetHash);
+      const res = await loginAdminWithPin(pin.trim());
+      if (res.success) {
         onSuccess();
       } else {
-        // Failed attempt: Rate limiting
-        const failedCount = parseInt(localStorage.getItem(STORAGE_FAILED_ATTEMPTS) || '0', 10) + 1;
-        localStorage.setItem(STORAGE_FAILED_ATTEMPTS, failedCount.toString());
-
-        if (failedCount >= 5) {
-          const lockoutTime = Date.now() + 15 * 60 * 1000; // 15 minutes lockout
-          localStorage.setItem(STORAGE_LOCKOUT_UNTIL, lockoutTime.toString());
+        if (res.retryAfter) {
           setIsLocked(true);
-          setError('Quá 5 lần nhập sai! Hệ thống đã khóa tạm thời 15 phút để bảo vệ an toàn.');
-        } else {
-          setError(`Mã PIN bảo mật không chính xác! Bạn còn ${5 - failedCount} lần thử.`);
+          setLockoutRemaining(res.retryAfter);
         }
+        setError(res.error || 'Mã PIN bảo mật không chính xác.');
         setPin('');
       }
     } catch {
@@ -113,7 +93,7 @@ export function AdminAuthGate({ onSuccess, onClose }: AdminAuthGateProps) {
               <KeyRound size={18} className="admin-input-icon" />
               <input
                 type="password"
-                maxLength={16}
+                maxLength={32}
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 placeholder="Nhập mã PIN bảo mật quản trị"
@@ -131,7 +111,7 @@ export function AdminAuthGate({ onSuccess, onClose }: AdminAuthGateProps) {
             </button>
 
             <div className="admin-auth-hint">
-              🔒 Phiên làm việc bảo mật HMAC-SHA256 • Tự hủy khi đóng tab
+              🔒 Xác thực Server-Side PBKDF2 (100k rounds) • Phiên làm việc HMAC-SHA256
             </div>
           </form>
         )}

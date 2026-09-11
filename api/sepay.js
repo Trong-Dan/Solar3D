@@ -1,33 +1,44 @@
 // ================================================================
-// VERCEL SERVERLESS FUNCTION — SEPAY API V2 PROXY
+// VERCEL SERVERLESS FUNCTION — SEPAY API V2 SECURE PROXY
 // Kết nối trực tiếp tới SePay User API V2 chính thức
+// SePay API Token được lưu an toàn trong Vercel Environment Variables
 // ================================================================
 
-export default async function handler(req, res) {
-  // Cấu hình CORS an toàn theo chuẩn W3C
-  const origin = req.headers.origin || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin);
-  if (origin !== '*') {
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-  );
+import { sepayProxyLimiter } from './lib/rateLimit.js';
+import { handleCors } from './lib/cors.js';
 
-  // Xử lý Preflight OPTIONS request từ trình duyệt
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+export default async function handler(req, res) {
+  if (
+    handleCors(req, res, {
+      methods: 'GET,OPTIONS',
+      allowedHeaders:
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization',
+    })
+  ) {
+    return;
   }
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Chỉ chấp nhận phương thức GET' });
   }
 
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: 'Thiếu Authorization Token' });
+  // ── Rate Limiting: 10 request / phút / IP ──
+  const rateCheck = sepayProxyLimiter.check(req);
+  if (!rateCheck.allowed) {
+    return res.status(429).json({
+      error: `Quá nhiều yêu cầu đồng bộ từ IP của bạn. Vui lòng thử lại sau ${rateCheck.retryAfter} giây.`,
+      retryAfter: rateCheck.retryAfter,
+    });
+  }
+
+  // ── SePay API Token: Đọc từ Vercel Environment Variable ──
+  // Cấu hình: Vercel Dashboard → Settings → Environment Variables → SEPAY_API_TOKEN
+  const sepayToken = process.env.SEPAY_API_TOKEN;
+  if (!sepayToken) {
+    return res.status(500).json({
+      error: 'Chưa cấu hình SEPAY_API_TOKEN trên server.',
+      hint: 'Vào Vercel Dashboard → Settings → Environment Variables → Thêm biến SEPAY_API_TOKEN với giá trị là API Token từ SePay.vn',
+    });
   }
 
   const { account_number, limit = '50', per_page, bank_account_id } = req.query || {};
@@ -49,7 +60,7 @@ export default async function handler(req, res) {
     const upstream = await fetch(targetUrl, {
       method: 'GET',
       headers: {
-        Authorization: authHeader,
+        Authorization: `Bearer ${sepayToken}`,
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
